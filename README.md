@@ -109,6 +109,8 @@ pnpm run sync-earning
 
 /earnings - Show earnings details of last 7 days
 
+/provided - Show the provided details summary grouped by expries & period
+
 /syncearnings - Load the earning data from bitfinex manually
 
 /submitoffers - Submit offer immediately

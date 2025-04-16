@@ -24,6 +24,7 @@ yarn-debug.log*
 yarn-error.log*
 
 server/custom-config.js
+server/test.js
 
 db.json
 db/*

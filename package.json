@@ -11,7 +11,9 @@
     "nedb-promises": "^6.2.3",
     "node-cache": "^5.1.2",
     "node-schedule": "^2.1.1",
-    "telegramsjs": "^4.8.2"
+    "source-map-support": "^0.5.21",
+    "telegramsjs": "^4.8.2",
+    "voici.js": "^2.1.0"
   },
   "scripts": {
     "start": "node server/index",
