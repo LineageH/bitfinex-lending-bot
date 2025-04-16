@@ -19,11 +19,11 @@ const splitEqually = async (avaliableBalance, ccy) => {
   }
 
   const period = getPeriod(rate);
-  return amounts.map(amount => ({
+  return amounts.map((amount) => ({
     rate,
     amount,
     period,
-    ccy
+    ccy,
   }));
 };
 
@@ -59,7 +59,7 @@ const splitPyramidally = async (avaliableBalance, ccy) => {
       amount,
       rate,
       period: getPeriod(rate),
-      ccy
+      ccy,
     });
     avaliableBalance -= amount;
     i++;
@@ -70,5 +70,5 @@ const splitPyramidally = async (avaliableBalance, ccy) => {
 
 module.exports = {
   splitEqually,
-  splitPyramidally
+  splitPyramidally,
 };

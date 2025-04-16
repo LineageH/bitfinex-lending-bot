@@ -4,14 +4,14 @@ const {
   getAvailableBalance,
   getCurrentLending,
   cancelAllFundingOffers,
-  submitFundingOffer
+  submitFundingOffer,
 } = bitfinext;
 const {
   readableLend,
   toTime,
   readableOffer,
   sleep,
-  asyncForEach
+  asyncForEach,
 } = require("./utils");
 const Stratege = require("./strategy");
 
@@ -25,16 +25,16 @@ function printStatus(balance, lending, offers) {
   console.log(`Time: ${time}`);
   console.log(`Balance: $${balance}`);
   console.log("Status:");
-  const items = lending.map(l => ({
+  const items = lending.map((l) => ({
     ...readableLend(l),
-    executed: true
+    executed: true,
   }));
 
-  offers.forEach(o => {
+  offers.forEach((o) => {
     items.push({
       ...readableOffer(o),
       exp: null,
-      executed: false
+      executed: false,
     });
   });
   if (lending.length) {
@@ -42,10 +42,6 @@ function printStatus(balance, lending, offers) {
   }
 }
 
-/*
-  The bot currently only monitors and auto submit offers for USD.
-  You need to operate USDt maually.
-*/
 async function main({ showDetail = false, ccy = "USD" } = {}) {
   await cancelAllFundingOffers(ccy);
 
@@ -56,9 +52,9 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
 
   // submit funding offer
   if (process.env.NODE_ENV === "development") {
-    offers.forEach(offer => console.log(readableOffer(offer)));
+    offers.forEach((offer) => console.log(readableOffer(offer)));
   } else {
-    asyncForEach(offers, async offer => {
+    await asyncForEach(offers, async (offer) => {
       await submitFundingOffer(offer);
       await sleep(500);
     });

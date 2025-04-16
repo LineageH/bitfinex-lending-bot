@@ -1,50 +1,88 @@
 # Bitfinex Lending Bot
-The project is written in React (create-react-app) and nodejs (expressjs).
 
-<img width="1029" alt="Screen Shot 2020-03-14 at 8 51 21 PM" src="https://user-images.githubusercontent.com/3991678/76682282-affb4000-6635-11ea-9f79-f485e31e69e2.png">
+The project is written in node.js.
 
+Forked From [@huaying/bitfinex-lending-bot](https://github.com/huaying/bitfinex-lending-bot) and make the following changes:
+
+- Upgrade to Node.js 22
+- Added a Telegram Bot
+- Remove the React Web
+- Remove the Express.js API
 
 ## Prerequisite
-yarn, docker, docker-compose
+
+- Node.js version 22+
+- npm / pnpm / yarn
+- pnpm install -g pm2 (Optional)
 
 ## Installation
-- Create a new file `.env` under the current directory and put your key, secret and timezone here.
+
+1. Create an API Key in Bitfinex, please note that need to have the following permissions:
+
+> <b>Margin Funding</b>
+> Get funding statuses and info. - On
+> Offer, cancel and close funding. - On
+
+> <b>Wallets</b>
+> Get wallet balances and addresses. - On
+
+If you don't have a static public IP:
+
+> <b>IP Access restrictions</b>
+> Allow access from any IP - On
+
+2. Rename the `.env.example` to `.env` and update the variable in the file
+
 ```
-API_KEY=xxx
-API_SECRET=xxx
 
-TZ=Asia/Taipei
+API_KEY=xxx //Bitfinex API KEY
+
+API_SECRET=xxx //Bitfinex API SECRET
+
+TELEGRAM_BOT_TOKEN=xxx //Telegram Bot Token
+
+TELEGRAM_CHAT_ID=xxx //Your Telegram UserID
+
+LEND_USD=0 //Lending USD [true/false]
+
+LEND_USDT=1 //Lending USDT [true/false]
+
 ```
 
-- Copy `server/custom-config.example.js` to `server/custom-config.js`, we can playground with the numbers in this config.
+3. Copy `server/custom-config.example.js` to `server/custom-config.js`, you may edit the variable of the lending strategy.
 
-- Run `yarn` to install required packages
+4. Run `pnpm install` to install required packages
 
 ## Run the bot
+
 If you just want to start the bot and automatically lend your money out, you only need to start the backend service.
-It will check your remaining/submit funding offers every <b>3</b> minutes.
+
+It will check your remaining/submit funding offers every <b>5</b> minutes.
 
 ```
-docker-compose up 
-```
 
-## Run the auto submit once
-Although the bot checks and submits offers regularly, you can run the script directly.
+pnpm run start
 
 ```
-yarn auto-submit
+
+## Submit the lending offer manually
+
+Although the bot will run it regularly, you can run the script directly.
+
 ```
 
-## Start the ui (optional)
+pnpm run auto-submit # For USD lending
+
+pnpm run auto-submit:usdt # For USDT lending
 
 ```
-yarn start
+
+## Read the earning data manually
+
+Although the bot will run it regularly, you can run the script directly.
+
 ```
 
-### Deploy to your own server:
+pnpm run sync-earning
 
-api: `docker-compose up -d` and serve it in a proxy server such as nginx
-
-ui:  `REACT_APP_API_URL='https://yourserverurl.com' yarn build` 
-
-
+```

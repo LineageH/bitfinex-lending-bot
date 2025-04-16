@@ -1,5 +1,5 @@
 const { getFundingBook } = require("./bitfinex");
-const { Rate: rateConfig, Period: periodConfig } = require("./config");
+const { Period: periodConfig } = require("./config");
 
 function compoundInterest(rate) {
   return Math.pow(1 + rate, 365) - 1;
@@ -19,7 +19,7 @@ function readableLend(lend) {
     amount: Number(lend.amount.toFixed(2)),
     period: lend.period,
     rate: readableRate(lend.rate),
-    exp: toTime(lend.time + lend.period * 86400000)
+    exp: toTime(lend.time + lend.period * 86400000),
   };
 }
 
@@ -27,7 +27,7 @@ function readableOffer(offer) {
   return {
     amount: Number(offer.amount.toFixed(2)),
     period: offer.period,
-    rate: readableRate(offer.rate)
+    rate: readableRate(offer.rate),
   };
 }
 
@@ -80,7 +80,7 @@ function step(mapping, key) {
 }
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function asyncForEach(array, callback) {
@@ -100,5 +100,5 @@ module.exports = {
   getLowRate,
   step,
   sleep,
-  asyncForEach
+  asyncForEach,
 };
