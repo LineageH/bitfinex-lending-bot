@@ -75,7 +75,7 @@ pm2 start pnpm --name "bitfinex" -- run start
 
 pm2 save
 
-``
+```
 
 ## Submit the lending offer manually
 
@@ -96,6 +96,8 @@ Although the bot will run it regularly, you can run the script directly.
 ```
 
 pnpm run sync-earning
+
+```
 
 ```
 
