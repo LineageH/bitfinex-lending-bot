@@ -69,6 +69,8 @@ Or you can run the bot with PM2
 
 ```
 
+pm2 startup
+
 pm2 start pnpm --name "bitfinex" -- run start
 
 pm2 save
