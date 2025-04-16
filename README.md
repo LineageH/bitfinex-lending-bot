@@ -43,9 +43,9 @@ TELEGRAM_BOT_TOKEN=xxx //Telegram Bot Token
 
 TELEGRAM_CHAT_ID=xxx //Your Telegram UserID
 
-LEND_USD=0 //Lending USD [true/false]
+LEND_USD=false //Lending USD [true/false]
 
-LEND_USDT=1 //Lending USDT [true/false]
+LEND_USDT=true //Lending USDT [true/false]
 
 ```
 
@@ -64,6 +64,16 @@ It will check your remaining/submit funding offers every <b>5</b> minutes.
 pnpm run start
 
 ```
+
+Or you can run the bot with PM2
+
+```
+
+pm2 start pnpm --name "bitfinex" -- run start
+
+pm2 save
+
+``
 
 ## Submit the lending offer manually
 
@@ -84,5 +94,7 @@ Although the bot will run it regularly, you can run the script directly.
 ```
 
 pnpm run sync-earning
+
+```
 
 ```
