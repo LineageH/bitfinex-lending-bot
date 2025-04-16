@@ -140,6 +140,8 @@ async function getData() {
       totalEarnings += e.amount;
     });
 
+    totalEarnings = totalEarnings.toFixed(2); // total earnings of the last 30 days
+
     const day7diff = 7 * 24 * 3600 * 1000;
     const day7ago = Date.now() - day7diff;
     const earnings = await db.earnings
