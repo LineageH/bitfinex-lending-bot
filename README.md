@@ -99,6 +99,17 @@ pnpm run sync-earning
 
 ```
 
+## Telegram Bot Commands
+
 ```
+
+/summary - Show lending summary
+
+/earnings - Show earnings details of last 7 days
+
+/syncearnings - Load the earning data from bitfinex manually
+
+/submitoffers - Submit offer immediately
+
 
 ```

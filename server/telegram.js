@@ -45,6 +45,7 @@ client.on("message", async (message) => {
           summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
           summary += `Provided  : ${d.providedAmount}\n`;
           summary += `Reminding : ${d.remindingAmount}\n`;
+          summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
           summary += `Provided  : ${d.providedRate}%\n`;
           summary += `Market    : ${d.rate}%\n\n`;
         }
@@ -127,9 +128,23 @@ async function getData() {
     // take only recently 30 days
     const day30diff = 30 * 24 * 3600 * 1000;
     const day30ago = Date.now() - day30diff;
-    const earnings = await db.earnings
+    const earnings30 = await db.earnings
       .find({
         mts: { $gt: day30ago },
+        currency: ccy,
+      })
+      .sort({ _id: -1 });
+
+    let totalEarnings = 0;
+    earnings30.forEach((e) => {
+      totalEarnings += e.amount;
+    });
+
+    const day7diff = 7 * 24 * 3600 * 1000;
+    const day7ago = Date.now() - day7diff;
+    const earnings = await db.earnings
+      .find({
+        mts: { $gt: day7ago },
         currency: ccy,
       })
       .sort({ _id: -1 });
@@ -141,6 +156,7 @@ async function getData() {
       providedAmount,
       remindingAmount,
       earnings,
+      totalEarnings,
       providedRate,
       rate,
     };
