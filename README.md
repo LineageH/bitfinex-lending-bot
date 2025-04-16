@@ -2,6 +2,8 @@
 
 The project is written in node.js.
 
+If you don't have Bitfinex account yet, you may [register here](https://www.bitfinex.com/sign-up?refcode=00xhxk-55).
+
 Forked From [@huaying/bitfinex-lending-bot](https://github.com/huaying/bitfinex-lending-bot) and make the following changes:
 
 - Upgrade to Node.js 22
