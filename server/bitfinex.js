@@ -51,15 +51,15 @@ async function submitFundingOffer({
   period = 2,
   ccy = DEFAULT_CCY,
 }) {
-  return client.submitFundingOffer(
-    new FundingOffer({
+  return client.submitFundingOffer({
+    offer: new FundingOffer({
       type: "LIMIT",
       symbol: `f${ccy}`,
       rate,
       amount,
       period,
-    })
-  );
+    }),
+  });
 }
 
 async function getFundingBook(ccy = DEFAULT_CCY) {

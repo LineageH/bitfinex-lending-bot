@@ -80,19 +80,27 @@ client.on("message", async (message) => {
       case "/syncearnings":
         await message.reply("Syncing funding earnings...");
         syncEarning();
-        await message.reply("Funding offers submitted successfully.");
+        await client.sendMessage({
+          chat_id: config.TELEGRAM_CHAT_ID,
+          text: "Funding earnings updated successfully.",
+        });
         break;
       case "/submitoffers":
         await message.reply("Submitting funding offers...");
         if (config.LEND.USD) await checkAndSubmitOffer();
         if (config.LEND.USDT) await checkAndSubmitOffer({ ccy: "UST" });
-        await message.reply("Funding offers submitted successfully.");
+        await client.sendMessage({
+          chat_id: config.TELEGRAM_CHAT_ID,
+          text: "Funding offers submitted successfully.",
+        });
         break;
     }
   }
 });
 
-client.login();
+module.exports = {
+  client,
+};
 
 async function getData() {
   const getDataByCurrency = async (ccy) => {
