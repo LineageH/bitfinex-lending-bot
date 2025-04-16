@@ -134,8 +134,6 @@ async function getData() {
       })
       .sort({ _id: -1 });
 
-    console.log(JSON.stringify(earnings, null, 2));
-
     return {
       ccy,
       balance,
