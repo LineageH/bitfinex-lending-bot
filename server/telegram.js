@@ -1,5 +1,5 @@
-const { TelegramClient } = require("telegramsjs");
 const { Table } = require("voici.js");
+const Telegram = require("node-telegram-bot-api");
 const NodeCache = require("node-cache");
 const moment = require("moment-timezone");
 const checkAndSubmitOffer = require("./submit-funding-offer");
@@ -9,11 +9,12 @@ const bitfinext = require("./bitfinex");
 const config = require("./config");
 const db = require("./db");
 
-const client = new TelegramClient(config.TELEGRAM_BOT_TOKEN);
 const cache = new NodeCache();
 
-client.on("ready", async ({ user }) => {
-  await user?.setCommands([
+const client = new Telegram(config.TELEGRAM_BOT_TOKEN, { polling: true });
+
+const login = async () => {
+  client.setMyCommands([
     {
       command: "/summary",
       description: "Show lending summary",
@@ -33,95 +34,85 @@ client.on("ready", async ({ user }) => {
     { command: "/submitoffers", description: "Submit funding offers" },
   ]);
 
-  console.log(`Logged in as @${user?.username}`);
-});
-
-client.on("message", async (message) => {
-  if (message.chat.id === config.TELEGRAM_CHAT_ID && message.author) {
-    const command = message.content.split(/[ @]/)[0].toLowerCase();
-    let data;
-    switch (command) {
-      case "/summary":
-        data = await getData();
-        let summary = "Summary:\n\n";
-        for (const d of data) {
-          const symbol = d.ccy === "USD" ? "USD" : "USDT";
-          summary += `${symbol}\n`;
-          summary += `Balance   : ${d.balance.toFixed(2)}\n`;
-          summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
-          summary += `Provided  : ${d.providedAmount}\n`;
-          summary += `Reminding : ${d.remindingAmount}\n`;
-          summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
-          summary += `Provided  : ${d.providedRate}%\n`;
-          summary += `Market    : ${d.rate}%\n\n`;
-        }
-
-        await client.sendMessage({
-          chat_id: config.TELEGRAM_CHAT_ID,
-          text: "```" + summary + "```",
-          parse_mode: "MarkdownV2",
-        });
-        break;
-      case "/earnings":
-        data = await getData();
-        let earnings = "Earnings:\n\n";
-        for (const d of data) {
-          const symbol = d.ccy === "USD" ? "USD" : "USDT";
-          earnings += `${symbol}\n`;
-          for (const e of d.earnings) {
-            const date = new Date(e.mts).toLocaleDateString("en-US", {
-              month: "short",
-              day: "2-digit",
-            });
-            earnings += `${date}: ${e.amount.toFixed(2)}\n`;
-          }
-          earnings += "\n";
-        }
-
-        await client.sendMessage({
-          chat_id: config.TELEGRAM_CHAT_ID,
-          text: "```" + earnings + "```",
-          parse_mode: "MarkdownV2",
-        });
-        break;
-      case "/provided":
-        data = await getData();
-        for (const d of data) {
-          const symbol = d.ccy === "USD" ? "USD" : "USDT";
-          let provided = `Provided ${symbol}:\n\n`;
-          provided += `${d.tableString}\n\n`;
-          provided += `Total   : ${d.providedAmount}\n`;
-          provided += `Avg Rate: ${d.providedRate}%\n`;
-          await client.sendMessage({
-            chat_id: config.TELEGRAM_CHAT_ID,
-            text: "```" + provided + "```",
-            parse_mode: "MarkdownV2",
-          });
-        }
-        break;
-      case "/syncearnings":
-        await message.reply("Syncing funding earnings...");
-        syncEarning();
-        await client.sendMessage({
-          chat_id: config.TELEGRAM_CHAT_ID,
-          text: "Funding earnings updated successfully.",
-        });
-        break;
-      case "/submitoffers":
-        await message.reply("Submitting funding offers...");
-        if (config.LEND.USD) await checkAndSubmitOffer();
-        if (config.LEND.USDT) await checkAndSubmitOffer({ ccy: "UST" });
-        await client.sendMessage({
-          chat_id: config.TELEGRAM_CHAT_ID,
-          text: "Funding offers submitted successfully.",
-        });
-        break;
+  client.onText(/\/summary/, async (msg) => {
+    if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+      const data = await getData();
+      let summary = "Summary:\n\n";
+      for (const d of data) {
+        const symbol = d.ccy === "USD" ? "USD" : "USDT";
+        summary += `${symbol}\n`;
+        summary += `Balance   : ${d.balance.toFixed(2)}\n`;
+        summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
+        summary += `Provided  : ${d.providedAmount}\n`;
+        summary += `Remaining : ${d.remindingAmount}\n`;
+        summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
+        summary += `Provided  : ${d.providedRate}%\n`;
+        summary += `Market    : ${d.rate}%\n\n`;
+      }
+      await sendMessage("```" + summary + "```");
     }
-  }
-});
+  });
+
+  client.onText(/\/earnings/, async (msg) => {
+    if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+      const data = await getData();
+      let earnings = "Earnings:\n\n";
+      for (const d of data) {
+        const symbol = d.ccy === "USD" ? "USD" : "USDT";
+        earnings += `${symbol}\n`;
+        for (const e of d.earnings) {
+          const date = new Date(e.mts).toLocaleDateString("en-US", {
+            month: "short",
+            day: "2-digit",
+          });
+          earnings += `${date}: ${e.amount.toFixed(2)}\n`;
+        }
+        earnings += "\n";
+      }
+      await sendMessage("```" + earnings + "```");
+    }
+  });
+
+  client.onText(/\/provided/, async (msg) => {
+    if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+      const data = await getData();
+      for (const d of data) {
+        const symbol = d.ccy === "USD" ? "USD" : "USDT";
+        let provided = `Provided ${symbol}:\n\n`;
+        provided += `${d.tableString}\n\n`;
+        provided += `Total     : ${d.providedAmount}\n`;
+        provided += `Avg Rate  : ${d.providedRate}%\n`;
+        provided += `Remaining : ${d.remindingAmount}\n`;
+        await sendMessage("```" + provided + "```");
+      }
+    }
+  });
+
+  client.onText(/\/syncearnings/, async (msg) => {
+    if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+      syncEarning();
+      await sendMessage("Funding earnings updated successfully");
+    }
+  });
+
+  client.onText(/\/provided/, async (msg) => {
+    if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+      await sendMessage("Submitting funding offers");
+      if (config.LEND.USD) await checkAndSubmitOffer();
+      if (config.LEND.USDT) await checkAndSubmitOffer({ ccy: "UST" });
+      await sendMessage("Funding offers submitted successfully");
+    }
+  });
+};
+
+const sendMessage = async (msg) => {
+  return await client.sendMessage(config.TELEGRAM_CHAT_ID, msg, {
+    parse_mode: "MarkdownV2",
+  });
+};
 
 module.exports = {
-  client,
+  login,
 };
 
 async function getData() {

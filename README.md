@@ -37,17 +37,17 @@ If you don't have a static public IP:
 
 ```
 
-API_KEY=xxx //Bitfinex API KEY
+API_KEY=xxx # Bitfinex API KEY
 
-API_SECRET=xxx //Bitfinex API SECRET
+API_SECRET=xxx # Bitfinex API SECRET
 
-TELEGRAM_BOT_TOKEN=xxx //Telegram Bot Token
+TELEGRAM_BOT_TOKEN=xxx # Telegram Bot Token
 
-TELEGRAM_CHAT_ID=xxx //Your Telegram UserID
+TELEGRAM_CHAT_ID=xxx # Your Telegram UserID
 
-LEND_USD=false //Lending USD [true/false]
+LEND_USD=false # Lending USD [true/false]
 
-LEND_USDT=true //Lending USDT [true/false]
+LEND_USDT=true # Lending USDT [true/false]
 
 ```
 

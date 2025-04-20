@@ -11,8 +11,8 @@
     "nedb-promises": "^6.2.3",
     "node-cache": "^5.1.2",
     "node-schedule": "^2.1.1",
+    "node-telegram-bot-api": "^0.66.0",
     "source-map-support": "^0.5.21",
-    "telegramsjs": "^4.8.2",
     "voici.js": "^2.1.0"
   },
   "scripts": {
@@ -25,6 +25,6 @@
     "nodemon": "^2.0.2"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=18.0.0"
   }
 }

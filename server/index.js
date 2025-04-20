@@ -3,4 +3,4 @@ const telegram = require("./telegram");
 
 scheduler();
 
-telegram.client.login();
+telegram.login();
