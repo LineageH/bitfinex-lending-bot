@@ -6,6 +6,7 @@ const client = new RESTv2({
   apiKey: config.API_KEY,
   apiSecret: config.API_SECRET,
   transform: true,
+  affCode: "o94zsAobf",
 });
 
 const DEFAULT_CCY = "USD";
