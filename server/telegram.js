@@ -95,7 +95,7 @@ const login = async () => {
     }
   });
 
-  client.onText(/\/provided/, async (msg) => {
+  client.onText(/\/submitoffers/, async (msg) => {
     if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
       await sendMessage("Submitting funding offers");
       if (config.LEND.USD) await checkAndSubmitOffer();
