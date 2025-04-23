@@ -58,7 +58,7 @@ LEND_USDT=true # Lending USDT [true/false]
 1. Run by PM2 on Linux / MacOS
 
 ```bash
-npm install pnpm
+npm install pnpm -g
 pnpm install
 pnpm install pm2 -g
 pm2 startup
@@ -69,7 +69,7 @@ pm2 save
 2. Run by PM2 on Windows
 
 ```bash
-npm install pnpm
+npm install pnpm -g
 pnpm install
 pnpm install pm2 -g
 pnpm install pm2-windows-startup -g
@@ -88,7 +88,7 @@ docker run --name bitfinex-lending-bot bitfinex-lending-bot
 4. Run with process
 
 ```bash
-npm install pnpm
+npm install pnpm -g
 pnpm install
 pnpm run start
 ```
