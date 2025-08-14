@@ -46,6 +46,7 @@ const login = async () => {
         summary += `Provided  : ${d.providedAmount}\n`;
         summary += `Remaining : ${d.remindingAmount}\n`;
         summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
+        summary += `Life Time : ${d.lifeTimeEarnings} (From ${d.fistDate})\n`;
         summary += `Provided  : ${d.providedRate}%\n`;
         summary += `Market    : ${d.rate}%\n\n`;
       }
@@ -204,6 +205,22 @@ async function getData() {
       })
       .sort({ _id: -1 });
 
+    const lifeEarnings = await db.earnings
+      .find({ currency: ccy })
+      .sort({ _id: -1 });
+    let lifeTimeEarnings = 0;
+    let fistDate = "";
+    lifeEarnings.forEach((e) => {
+      if (e.currency === ccy) {
+        lifeTimeEarnings += e.amount;
+        fistDate = new Date(e.mts).toLocaleDateString("en-US", {
+          month: "short",
+          day: "2-digit",
+          year: "2-digit",
+        });
+      }
+    });
+
     return {
       ccy,
       balance,
@@ -215,6 +232,8 @@ async function getData() {
       providedRate,
       rate,
       tableString,
+      lifeTimeEarnings: lifeTimeEarnings.toFixed(2),
+      fistDate,
     };
   };
 
