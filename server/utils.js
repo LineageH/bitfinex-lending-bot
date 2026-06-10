@@ -1,4 +1,4 @@
-const { getFundingBook } = require("./bitfinex");
+const { getFundingBook, fetchFRR } = require("./bitfinex");
 const { Period: periodConfig } = require("./config");
 
 function compoundInterest(rate) {
@@ -42,6 +42,11 @@ function getPeriod(rate) {
     }
   }
   return 2;
+}
+
+async function getFRR(ccy = "USD") {
+  const t = await fetchFRR(ccy);
+  return t;
 }
 
 async function getRate(ccy, expected_over_amount = 50000) {
@@ -96,6 +101,7 @@ module.exports = {
   readableLend,
   readableOffer,
   getPeriod,
+  getFRR,
   getRate,
   getLowRate,
   step,

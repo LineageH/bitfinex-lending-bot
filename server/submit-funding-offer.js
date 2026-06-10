@@ -16,7 +16,7 @@ const {
 const Stratege = require("./strategy");
 
 async function getFundingOffers(avaliableBalance, ccy) {
-  return Stratege.splitPyramidally(avaliableBalance, ccy);
+  return Stratege.splitByRate(avaliableBalance, ccy); // You can change the strategy here, for example: Stratege.splitPyramidally(avaliableBalance, ccy);
 }
 
 function printStatus(balance, lending, offers) {

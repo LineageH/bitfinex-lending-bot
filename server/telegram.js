@@ -4,7 +4,7 @@ const NodeCache = require("node-cache");
 const moment = require("moment-timezone");
 const checkAndSubmitOffer = require("./submit-funding-offer");
 const syncEarning = require("./sync-funding-earning");
-const { compoundInterest, getLowRate } = require("./utils");
+const { compoundInterest, getLowRate, getFRR } = require("./utils");
 const bitfinext = require("./bitfinex");
 const config = require("./config");
 const db = require("./db");
@@ -48,7 +48,8 @@ const login = async () => {
         summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
         summary += `Life Time : ${d.lifeTimeEarnings} (From ${d.fistDate})\n`;
         summary += `Provided  : ${d.providedRate}%\n`;
-        summary += `Market    : ${d.rate}%\n\n`;
+        summary += `Market    : ${d.rate}%\n`;
+        summary += `FRR       : ${d.frrRate}%\n\n`;
       }
       await sendMessage("```" + summary + "```");
     }
@@ -84,6 +85,7 @@ const login = async () => {
         provided += `Total     : ${d.providedAmount}\n`;
         provided += `Avg Rate  : ${d.providedRate}%\n`;
         provided += `Remaining : ${d.remindingAmount}\n`;
+        provided += `FRR       : ${d.frrRate}%\n`;
         await sendMessage("```" + provided + "```");
       }
     }
@@ -179,6 +181,8 @@ async function getData() {
     const remindingAmount = (balance - total).toFixed(2); // remaining amount of the funding wallet
     const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
 
+    const frrRate = (compoundInterest(await getFRR(ccy)) * 100).toFixed(2); // interest rate of the FRR
+
     // take only recently 30 days
     const day30diff = 30 * 24 * 3600 * 1000;
     const day30ago = Date.now() - day30diff;
@@ -231,6 +235,7 @@ async function getData() {
       totalEarnings,
       providedRate,
       rate,
+      frrRate,
       tableString,
       lifeTimeEarnings: lifeTimeEarnings.toFixed(2),
       fistDate,

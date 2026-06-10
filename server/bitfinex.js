@@ -14,7 +14,7 @@ const DEFAULT_CCY = "USD";
 async function getBalance(ccy = DEFAULT_CCY) {
   const wallets = await client.wallets();
   const wallet = wallets.find(
-    (w) => w.type === "funding" && w.currency === ccy
+    (w) => w.type === "funding" && w.currency === ccy,
   );
   if (wallet) {
     return wallet.balance;
@@ -97,6 +97,11 @@ async function getFundingEarning(ccy = null) {
   return earnings;
 }
 
+async function fetchFRR(ccy = DEFAULT_CCY) {
+  const t = await client.ticker({ symbol: `f${ccy}` });
+  return t.frr || 0.00000001; // fallback to a very low rate if FRR is not available
+}
+
 module.exports = {
   client,
   getBalance,
@@ -106,4 +111,5 @@ module.exports = {
   submitFundingOffer,
   getFundingBook,
   getFundingEarning,
+  fetchFRR,
 };

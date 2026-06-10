@@ -3,17 +3,17 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
-    "bfx-api-node-models": "^2.0.1",
-    "bfx-api-node-rest": "^6.0.0",
-    "dotenv": "^16.5.0",
-    "moment-timezone": "^0.5.48",
+    "bfx-api-node-models": "^2.1.1",
+    "bfx-api-node-rest": "^8.0.0",
+    "dotenv": "^17.4.2",
+    "moment-timezone": "^0.6.2",
     "nedb": "^1.8.0",
     "nedb-promises": "^6.2.3",
     "node-cache": "^5.1.2",
     "node-schedule": "^2.1.1",
-    "node-telegram-bot-api": "^0.66.0",
+    "node-telegram-bot-api": "^0.67.0",
     "source-map-support": "^0.5.21",
-    "voici.js": "^2.1.0"
+    "voici.js": "^3.0.0"
   },
   "scripts": {
     "start": "node server/index",
@@ -22,7 +22,7 @@
     "sync-earning": "node server/sync-funding-earning"
   },
   "devDependencies": {
-    "nodemon": "^2.0.2"
+    "nodemon": "^3.1.14"
   },
   "engines": {
     "node": ">=18.0.0"

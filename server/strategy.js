@@ -1,4 +1,10 @@
-const { getPeriod, getRate, step } = require("./utils");
+const {
+  getPeriod,
+  getRate,
+  step,
+  compoundInterest,
+  getFRR,
+} = require("./utils");
 const { Strategy: config } = require("./config");
 
 const splitEqually = async (avaliableBalance, ccy) => {
@@ -32,7 +38,6 @@ function getDerivedRate(l, h, x) {
   return 1 + (1 - (x - l) / (h - l)) * 0.1;
 }
 
-// default stratege
 const splitPyramidally = async (avaliableBalance, ccy) => {
   const CONFIG = config.splitPyramidally;
   const MIN_TO_LEND = CONFIG.MIN_TO_LEND;
@@ -48,7 +53,7 @@ const splitPyramidally = async (avaliableBalance, ccy) => {
   while (avaliableBalance > MIN_TO_LEND) {
     amount = Math.min(
       avaliableBalance,
-      amountInit * Math.pow(CONFIG.AMOUNT_GROW_EXP, i)
+      amountInit * Math.pow(CONFIG.AMOUNT_GROW_EXP, i),
     );
     amount = Math.floor(amount);
     rate =
@@ -68,7 +73,57 @@ const splitPyramidally = async (avaliableBalance, ccy) => {
   return offers;
 };
 
+const splitByRate = async (availableBalance, ccy) => {
+  const CONFIG = config.splitByRate || {};
+  const MIN_TO_LEND = Math.max(CONFIG.MIN_TO_LEND || 150, 150);
+  const MIN_APY = CONFIG.MIN_APY || 0.1;
+  const FRR_FACTOR = CONFIG.FRR_FACTOR || 0.95;
+  const TIER_RATE_MULTIPLIERS = CONFIG.TIER_RATE_MULTIPLIERS || [
+    1.0, 1.04, 1.09, 1.14, 1.19, 1.25, 1.35, 1.45,
+  ];
+  const TIER_WEIGHTS = CONFIG.TIER_WEIGHTS || [
+    1.0, 1.5, 2.0, 2.5, 2.5, 2.0, 1.5, 1.0,
+  ];
+
+  const offers = [];
+  let i = 0;
+
+  if (availableBalance < MIN_TO_LEND) return offers;
+
+  const frr = await getFRR(ccy);
+  const baseRate = frr * FRR_FACTOR;
+  const baseApr = compoundInterest(baseRate);
+  if (baseApr < MIN_APY) return offers;
+
+  let amount;
+  let rate;
+
+  const totalBalance = availableBalance;
+  const WEIGHT_SUM = TIER_WEIGHTS.reduce((a, b) => a + b, 0);
+
+  while (availableBalance > MIN_TO_LEND) {
+    amount = Math.min(
+      availableBalance,
+      totalBalance * (TIER_WEIGHTS[i] / WEIGHT_SUM),
+    );
+    amount = Math.floor(amount);
+    rate = baseRate * (TIER_RATE_MULTIPLIERS[i] || TIER_RATE_MULTIPLIERS[0]);
+
+    offers.push({
+      amount,
+      rate,
+      period: getPeriod(rate),
+      ccy,
+    });
+    availableBalance -= amount;
+    i++;
+  }
+
+  return offers;
+};
+
 module.exports = {
   splitEqually,
   splitPyramidally,
+  splitByRate,
 };
