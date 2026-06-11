@@ -32,6 +32,7 @@ const login = async () => {
       description: "Sync funding earnings",
     },
     { command: "/submitoffers", description: "Submit funding offers" },
+    { command: "/listoffer", description: "List open funding offers" },
   ]);
 
   client.onText(/\/summary/, async (msg) => {
@@ -111,6 +112,59 @@ const login = async () => {
       await sendMessage("Funding offers submitted successfully");
     }
   });
+
+  client.onText(/\/listoffer/, async (msg) => {
+    try {
+      if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+        const currencies = [];
+        if (config.LEND.USD) currencies.push("USD");
+        if (config.LEND.USDT) currencies.push("UST");
+
+        if (currencies.length === 0) {
+          await sendMessage("```Lending is disabled in config\n```");
+          return;
+        }
+
+        for (const ccy of currencies) {
+          const offers = await bitfinext.getCurrentFundingOffers(ccy);
+          const symbol = ccy === "USD" ? "USD" : "USDT";
+
+          if (offers.length === 0) {
+            await sendMessage(
+              "```No open funding offers (" + symbol + ")\n```",
+            );
+            continue;
+          }
+
+          const total = offers.reduce(
+            (acc, offer) => acc + Number(offer.amount || 0),
+            0,
+          );
+
+          let content = `\nOpen funding offers (${symbol})\n`;
+          content += `Count : ${offers.length}\n`;
+          content += `Total : ${total.toFixed(2)}\n\n`;
+
+          offers.slice(0, 20).forEach((offer, index) => {
+            const rate = (compoundInterest(offer.rate || 0) * 100).toFixed(2);
+            const createdAt = moment(offer.time).format("MM-DD HH:mm");
+            content += `${index + 1}. ${Number(offer.amount || 0).toFixed(2)} @ ${rate}% for ${offer.period}d\n`;
+          });
+
+          if (offers.length > 20) {
+            content += `...and ${offers.length - 20} more\n`;
+          }
+
+          await sendMessage("```" + content + "```");
+        }
+      }
+    } catch (error) {
+      console.error("Error in /listoffer command:", error);
+      await sendMessage(
+        "An error occurred while fetching open funding offers.",
+      );
+    }
+  });
 };
 
 const sendMessage = async (msg) => {
@@ -119,8 +173,33 @@ const sendMessage = async (msg) => {
   });
 };
 
+const notifyNewLending = async ({ ccy, loans }) => {
+  if (!loans || loans.length === 0) {
+    return;
+  }
+
+  const symbol = ccy === "USD" ? "USD" : "USDT";
+  const total = loans.reduce((acc, loan) => acc + Number(loan.amount || 0), 0);
+
+  let message = `\nNew funding lent (${symbol})\n`;
+  message += `Count : ${loans.length}\n`;
+  message += `Total : ${total.toFixed(2)}\n\n`;
+
+  loans.slice(0, 10).forEach((loan, index) => {
+    const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
+    message += `${index + 1}. ${Number(loan.amount || 0).toFixed(2)} @ ${rate}% for ${loan.period}d\n`;
+  });
+
+  if (loans.length > 10) {
+    message += `...and ${loans.length - 10} more\n`;
+  }
+
+  await sendMessage("```" + message + "```");
+};
+
 module.exports = {
   login,
+  notifyNewLending,
 };
 
 async function getData() {

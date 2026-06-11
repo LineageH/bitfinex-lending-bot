@@ -35,10 +35,22 @@ async function getAvailableBalance(ccy = DEFAULT_CCY) {
 async function getCurrentLending(ccy = DEFAULT_CCY) {
   // get current active lending
   return (await client.fundingCredits({ symbol: `f${ccy}` })).map((c) => ({
+    id: c.id,
     amount: c.amount,
     rate: c.rate,
     period: c.period,
     time: c.mtsOpening,
+  }));
+}
+
+async function getCurrentFundingOffers(ccy = DEFAULT_CCY) {
+  // get current active funding offers (not executed yet)
+  return (await client.fundingOffers({ symbol: `f${ccy}` })).map((offer) => ({
+    id: offer.id,
+    amount: offer.amount,
+    rate: offer.rate,
+    period: offer.period,
+    time: offer.mtsCreate || offer.mtsCreated || offer.mtsUpdate || Date.now(),
   }));
 }
 
@@ -107,6 +119,7 @@ module.exports = {
   getBalance,
   getAvailableBalance,
   getCurrentLending,
+  getCurrentFundingOffers,
   cancelAllFundingOffers,
   submitFundingOffer,
   getFundingBook,
