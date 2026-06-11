@@ -88,8 +88,6 @@ const splitByRate = async (availableBalance, ccy) => {
   const offers = [];
   let i = 0;
 
-  if (availableBalance < MIN_TO_LEND) return offers;
-
   const frr = await getFRR(ccy);
   let baseRate = frr * FRR_FACTOR;
   const baseApr = compoundInterest(baseRate);
@@ -107,6 +105,7 @@ const splitByRate = async (availableBalance, ccy) => {
       totalBalance * (TIER_WEIGHTS[i] / WEIGHT_SUM),
     );
     amount = Math.floor(amount);
+    if (amount < MIN_TO_LEND) break;
     rate = baseRate * (TIER_RATE_MULTIPLIERS[i] || TIER_RATE_MULTIPLIERS[0]);
 
     offers.push({
