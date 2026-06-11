@@ -45,10 +45,10 @@ const login = async () => {
           summary += `${symbol}\n`;
           summary += `Balance   : ${d.balance.toFixed(2)}\n`;
           summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
-          summary += `Provided  : ${d.providedAmount} (${((d.providedAmount / d.balance) * 100).toFixed(2)}%)\n`;
+          summary += `Provided  : ${d.providedAmount} (${((d.providedAmount / (d.balance || 1)) * 100).toFixed(2)}%)\n`;
           summary += `Offered   : ${d.remindingAmount}\n`;
-          summary += `Provided  : ${d.providedRate}%\n`;
-          summary += `Effective : ${((d.providedRate * d.providedAmount) / d.balance).toFixed(2)}%\n`;
+          summary += `Provided  : ${d.providedRate || 0}%\n`;
+          summary += `Effective : ${(((d.providedRate || 0) * d.providedAmount) / (d.balance || 1)).toFixed(2)}%\n`;
           summary += `Mkt. Low  : ${d.rate}%\n`;
           summary += `FRR       : ${d.frrRate}%\n`;
           summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
@@ -261,7 +261,10 @@ async function getData() {
       total += l.amount;
       interest += l.amount * l.rate;
     }
-    const providedRate = (interest / total).toFixed(2); // interest rate of provided lending
+    const providedRate =
+      total > 0 && Number.isFinite(interest / total)
+        ? (interest / total).toFixed(2)
+        : "0"; // interest rate of provided lending
     const providedAmount = total.toFixed(2); // total amount of provided lending
     const remindingAmount = (balance - total).toFixed(2); // remaining amount of the funding wallet
     const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
