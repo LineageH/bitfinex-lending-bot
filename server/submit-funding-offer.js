@@ -87,12 +87,20 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
     avaliableBalance + currentOfferAmount,
     ccy,
   );
+  const hasNoCurrentAndNoTarget =
+    currentOffers.length === 0 && offers.length === 0;
   const shouldReplaceOffers = !isSameOfferSet(currentOffers, offers);
 
-  if (shouldReplaceOffers) {
+  if (hasNoCurrentAndNoTarget) {
+    console.log(
+      `${toTime()}: No active offers and strategy generated no offers, skip submit`,
+    );
+  } else if (shouldReplaceOffers) {
     // submit funding offer only when target offers differ from current offers
     if (process.env.NODE_ENV === "development") {
-      console.log("Offers changed, replacing funding offers");
+      console.log(
+        `Offers changed, replacing funding offers (current=${currentOffers.length}, target=${offers.length})`,
+      );
       offers.forEach((offer) => console.log(readableOffer(offer)));
     } else {
       await cancelAllFundingOffers(ccy);
@@ -102,7 +110,9 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       });
     }
   } else {
-    console.log(`${toTime()}: Offers unchanged, skip cancel and resubmit`);
+    console.log(
+      `${toTime()}: Offers unchanged (count=${offers.length}), skip cancel and resubmit`,
+    );
   }
 
   if (showDetail) {
