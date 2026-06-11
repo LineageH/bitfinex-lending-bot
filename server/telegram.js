@@ -35,23 +35,28 @@ const login = async () => {
   ]);
 
   client.onText(/\/summary/, async (msg) => {
-    if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
-      const data = await getData();
-      let summary = "Summary:\n\n";
-      for (const d of data) {
-        const symbol = d.ccy === "USD" ? "USD" : "USDT";
-        summary += `${symbol}\n`;
-        summary += `Balance   : ${d.balance.toFixed(2)}\n`;
-        summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
-        summary += `Provided  : ${d.providedAmount}\n`;
-        summary += `Remaining : ${d.remindingAmount}\n`;
-        summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
-        summary += `Life Time : ${d.lifeTimeEarnings} (From ${d.fistDate})\n`;
-        summary += `Provided  : ${d.providedRate}%\n`;
-        summary += `Market    : ${d.rate}%\n`;
-        summary += `FRR       : ${d.frrRate}%\n\n`;
+    try {
+      if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+        const data = await getData();
+        let summary = "Summary:\n\n";
+        for (const d of data) {
+          const symbol = d.ccy === "USD" ? "USD" : "USDT";
+          summary += `${symbol}\n`;
+          summary += `Balance   : ${d.balance.toFixed(2)}\n`;
+          summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
+          summary += `Provided  : ${d.providedAmount}\n`;
+          summary += `Remaining : ${d.remindingAmount}\n`;
+          summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
+          summary += `Life Time : ${d.lifeTimeEarnings} (From ${d.fistDate})\n`;
+          summary += `Provided  : ${d.providedRate}%\n`;
+          summary += `Market    : ${d.rate}%\n`;
+          summary += `FRR       : ${d.frrRate}%\n\n`;
+        }
+        await sendMessage("```" + summary + "```");
       }
-      await sendMessage("```" + summary + "```");
+    } catch (error) {
+      console.error("Error in /summary command:", error);
+      await sendMessage("An error occurred while fetching the summary.");
     }
   });
 
