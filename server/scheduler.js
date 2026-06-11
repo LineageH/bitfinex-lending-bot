@@ -15,15 +15,7 @@ const parsedNotifyInterval = Number(LendingNotifyInterval);
 const LENDING_NOTIFY_INTERVAL_MINUTES = Number.isNaN(parsedNotifyInterval)
   ? 5
   : parsedNotifyInterval;
-const lendingSnapshot = new Map();
-let lendingSnapshotInitialized = false;
-
-const getLendingKey = (loan) => {
-  if (loan.id !== undefined && loan.id !== null) {
-    return String(loan.id);
-  }
-  return [loan.time, loan.period, loan.rate, loan.amount].join("_");
-};
+const latestCreditMtsByCurrency = new Map();
 
 const enabledCurrencies = () => {
   const list = [];
@@ -40,24 +32,39 @@ async function checkNewLendingAndNotify() {
 
   try {
     for (const ccy of currencies) {
-      const loans = await bitfinex.getCurrentLending(ccy);
-      const currentKeys = new Set(loans.map(getLendingKey));
-      const previousKeys = lendingSnapshot.get(ccy) || new Set();
+      const lastMtsCreate = latestCreditMtsByCurrency.get(ccy);
+      const credits = await bitfinex.getFundingCreditHistory(
+        ccy,
+        lastMtsCreate,
+      );
 
-      if (lendingSnapshotInitialized) {
-        const newLoans = loans.filter(
-          (loan) => !previousKeys.has(getLendingKey(loan)),
-        );
-        if (newLoans.length > 0) {
-          await telegram.notifyNewLending({ ccy, loans: newLoans });
+      if (lastMtsCreate == null) {
+        if (credits.length > 0) {
+          latestCreditMtsByCurrency.set(
+            ccy,
+            credits[credits.length - 1].mtsCreate,
+          );
+        } else {
+          latestCreditMtsByCurrency.set(ccy, Date.now());
         }
+        continue;
       }
 
-      lendingSnapshot.set(ccy, currentKeys);
-    }
+      if (credits.length > 0) {
+        const newLoans = credits.map((credit) => ({
+          id: credit.id,
+          amount: credit.amount,
+          rate: credit.rate,
+          period: credit.period,
+          time: credit.mtsCreate,
+        }));
+        await telegram.notifyNewLending({ ccy, loans: newLoans });
 
-    if (!lendingSnapshotInitialized) {
-      lendingSnapshotInitialized = true;
+        latestCreditMtsByCurrency.set(
+          ccy,
+          credits[credits.length - 1].mtsCreate,
+        );
+      }
     }
   } catch (error) {
     console.error(`${toTime()}: Failed to check new lending`, error);

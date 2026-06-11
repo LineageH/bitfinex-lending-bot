@@ -54,6 +54,36 @@ async function getCurrentFundingOffers(ccy = DEFAULT_CCY) {
   }));
 }
 
+async function getFundingCreditHistory(
+  ccy = DEFAULT_CCY,
+  sinceMtsCreate = null,
+) {
+  const records = await client.fundingCreditHistory({
+    symbol: `f${ccy}`,
+    limit: 50,
+  });
+
+  return records
+    .map((credit) => {
+      const status = String(credit.status || "").toUpperCase();
+      const mtsCreate =
+        credit.mtsCreate || credit.mts_create || credit.mtsCreated || 0;
+      return {
+        id: credit.id,
+        amount: credit.amount,
+        rate: credit.rate,
+        period: credit.period,
+        status,
+        mtsCreate,
+      };
+    })
+    .filter((credit) => credit.status === "ACTIVE")
+    .filter((credit) =>
+      sinceMtsCreate == null ? true : credit.mtsCreate > sinceMtsCreate,
+    )
+    .sort((a, b) => a.mtsCreate - b.mtsCreate);
+}
+
 async function cancelAllFundingOffers(ccy = DEFAULT_CCY) {
   return client.cancelAllFundingOffers({ currency: ccy });
 }
@@ -120,6 +150,7 @@ module.exports = {
   getAvailableBalance,
   getCurrentLending,
   getCurrentFundingOffers,
+  getFundingCreditHistory,
   cancelAllFundingOffers,
   submitFundingOffer,
   getFundingBook,

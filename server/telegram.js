@@ -39,8 +39,8 @@ const login = async () => {
     try {
       if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
         const data = await getData();
-        let summary = "Summary:\n\n";
         for (const d of data) {
+          let summary = "Summary:\n\n";
           const symbol = d.ccy === "USD" ? "USD" : "USDT";
           summary += `${symbol}\n`;
           summary += `Balance   : ${d.balance.toFixed(2)}\n`;
@@ -142,7 +142,7 @@ const login = async () => {
             0,
           );
 
-          let content = `\nOpen funding offers (${symbol})\n`;
+          let content = `\nOffers (${symbol})\n`;
           content += `Count : ${offers.length}\n`;
           content += `Total : ${total.toFixed(2)}\n\n`;
 
@@ -182,9 +182,7 @@ const notifyNewLending = async ({ ccy, loans }) => {
   const symbol = ccy === "USD" ? "USD" : "USDT";
   const total = loans.reduce((acc, loan) => acc + Number(loan.amount || 0), 0);
 
-  let message = `\nNew funding lent (${symbol})\n`;
-  message += `Count : ${loans.length}\n`;
-  message += `Total : ${total.toFixed(2)}\n\n`;
+  let message = `\nNew ${symbol} Transactions (${loans.length})\n`;
 
   loans.slice(0, 10).forEach((loan, index) => {
     const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
