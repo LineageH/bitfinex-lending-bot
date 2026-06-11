@@ -91,9 +91,9 @@ const splitByRate = async (availableBalance, ccy) => {
   if (availableBalance < MIN_TO_LEND) return offers;
 
   const frr = await getFRR(ccy);
-  const baseRate = frr * FRR_FACTOR;
+  let baseRate = frr * FRR_FACTOR;
   const baseApr = compoundInterest(baseRate);
-  if (baseApr < MIN_APY) return offers;
+  if (baseApr < MIN_APY) baseRate = Math.pow(1 + MIN_APY, 1 / 365) - 1;
 
   let amount;
   let rate;

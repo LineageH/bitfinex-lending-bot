@@ -45,15 +45,16 @@ const login = async () => {
           summary += `${symbol}\n`;
           summary += `Balance   : ${d.balance.toFixed(2)}\n`;
           summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
-          summary += `Provided  : ${d.providedAmount}\n`;
-          summary += `Remaining : ${d.remindingAmount}\n`;
+          summary += `Provided  : ${d.providedAmount} (${((d.providedAmount / d.balance) * 100).toFixed(2)}%)\n`;
+          summary += `Offered   : ${d.remindingAmount}\n`;
+          summary += `Provided  : ${d.providedRate}%\n`;
+          summary += `Effective : ${((d.providedRate * d.providedAmount) / d.balance).toFixed(2)}%\n`;
+          summary += `Mkt. Low  : ${d.rate}%\n`;
+          summary += `FRR       : ${d.frrRate}%\n`;
           summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
           summary += `Life Time : ${d.lifeTimeEarnings} (From ${d.fistDate})\n`;
-          summary += `Provided  : ${d.providedRate}%\n`;
-          summary += `Market    : ${d.rate}%\n`;
-          summary += `FRR       : ${d.frrRate}%\n\n`;
+          await sendMessage("```" + summary + "```");
         }
-        await sendMessage("```" + summary + "```");
       }
     } catch (error) {
       console.error("Error in /summary command:", error);

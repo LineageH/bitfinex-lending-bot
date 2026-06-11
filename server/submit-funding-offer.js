@@ -3,6 +3,7 @@ const {
   getBalance,
   getAvailableBalance,
   getCurrentLending,
+  getCurrentFundingOffers,
   cancelAllFundingOffers,
   submitFundingOffer,
 } = bitfinext;
@@ -17,6 +18,37 @@ const Stratege = require("./strategy");
 
 async function getFundingOffers(avaliableBalance, ccy) {
   return Stratege.splitByRate(avaliableBalance, ccy); // You can change the strategy here, for example: Stratege.splitPyramidally(avaliableBalance, ccy);
+}
+
+function toOfferKey(offer) {
+  return [
+    Number(offer.amount || 0).toFixed(8),
+    Number(offer.rate || 0).toFixed(12),
+    Number(offer.period || 0),
+  ].join("|");
+}
+
+function isSameOfferSet(currentOffers, targetOffers) {
+  if (currentOffers.length !== targetOffers.length) {
+    return false;
+  }
+
+  const counts = new Map();
+  currentOffers.forEach((offer) => {
+    const key = toOfferKey(offer);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+
+  for (const offer of targetOffers) {
+    const key = toOfferKey(offer);
+    const count = counts.get(key) || 0;
+    if (count === 0) {
+      return false;
+    }
+    counts.set(key, count - 1);
+  }
+
+  return true;
 }
 
 function printStatus(balance, lending, offers) {
@@ -43,21 +75,34 @@ function printStatus(balance, lending, offers) {
 }
 
 async function main({ showDetail = false, ccy = "USD" } = {}) {
-  await cancelAllFundingOffers(ccy);
-
   const balance = await getBalance(ccy);
   const lending = await getCurrentLending(ccy);
+  const currentOffers = await getCurrentFundingOffers(ccy);
   const avaliableBalance = await getAvailableBalance(ccy);
-  const offers = await getFundingOffers(avaliableBalance, ccy);
+  const currentOfferAmount = currentOffers.reduce(
+    (sum, offer) => sum + Math.abs(Number(offer.amount || 0)),
+    0,
+  );
+  const offers = await getFundingOffers(
+    avaliableBalance + currentOfferAmount,
+    ccy,
+  );
+  const shouldReplaceOffers = !isSameOfferSet(currentOffers, offers);
 
-  // submit funding offer
-  if (process.env.NODE_ENV === "development") {
-    offers.forEach((offer) => console.log(readableOffer(offer)));
+  if (shouldReplaceOffers) {
+    // submit funding offer only when target offers differ from current offers
+    if (process.env.NODE_ENV === "development") {
+      console.log("Offers changed, replacing funding offers");
+      offers.forEach((offer) => console.log(readableOffer(offer)));
+    } else {
+      await cancelAllFundingOffers(ccy);
+      await asyncForEach(offers, async (offer) => {
+        await submitFundingOffer(offer);
+        await sleep(500);
+      });
+    }
   } else {
-    await asyncForEach(offers, async (offer) => {
-      await submitFundingOffer(offer);
-      await sleep(500);
-    });
+    console.log(`${toTime()}: Offers unchanged, skip cancel and resubmit`);
   }
 
   if (showDetail) {
