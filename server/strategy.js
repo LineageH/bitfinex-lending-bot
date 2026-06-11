@@ -102,11 +102,16 @@ const splitByRate = async (availableBalance, ccy) => {
   while (availableBalance > MIN_TO_LEND) {
     amount = Math.min(
       availableBalance,
-      totalBalance * (TIER_WEIGHTS[i] / WEIGHT_SUM),
+      Math.max(MIN_TO_LEND, totalBalance * (TIER_WEIGHTS[i] / WEIGHT_SUM)),
     );
+    availableBalance -= amount;
+    if (availableBalance < MIN_TO_LEND && availableBalance > 0) {
+      amount += availableBalance;
+    }
     amount = Math.floor(amount);
     if (amount < MIN_TO_LEND) break;
     rate = baseRate * (TIER_RATE_MULTIPLIERS[i] || TIER_RATE_MULTIPLIERS[0]);
+    if (rate < baseRate) rate = baseRate;
 
     offers.push({
       amount,
@@ -114,7 +119,6 @@ const splitByRate = async (availableBalance, ccy) => {
       period: getPeriod(rate),
       ccy,
     });
-    availableBalance -= amount;
     i++;
   }
 
