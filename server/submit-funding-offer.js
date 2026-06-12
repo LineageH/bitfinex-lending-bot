@@ -75,48 +75,56 @@ function printStatus(balance, lending, offers) {
 }
 
 async function main({ showDetail = false, ccy = "USD" } = {}) {
-  const balance = await getBalance(ccy);
-  const lending = await getCurrentLending(ccy);
-  const currentOffers = await getCurrentFundingOffers(ccy);
-  const avaliableBalance = await getAvailableBalance(ccy);
-  const currentOfferAmount = currentOffers.reduce(
-    (sum, offer) => sum + Math.abs(Number(offer.amount || 0)),
-    0,
-  );
-  const offers = await getFundingOffers(
-    avaliableBalance + currentOfferAmount,
-    ccy,
-  );
-  const hasNoCurrentAndNoTarget =
-    currentOffers.length === 0 && offers.length === 0;
-  const shouldReplaceOffers = !isSameOfferSet(currentOffers, offers);
-
-  if (hasNoCurrentAndNoTarget) {
-    console.log(
-      `${toTime()}: No active offers and strategy generated no offers, skip submit`,
+  try {
+    const balance = await getBalance(ccy);
+    const lending = await getCurrentLending(ccy);
+    const currentOffers = await getCurrentFundingOffers(ccy);
+    const avaliableBalance = await getAvailableBalance(ccy);
+    const currentOfferAmount = currentOffers.reduce(
+      (sum, offer) => sum + Math.abs(Number(offer.amount || 0)),
+      0,
     );
-  } else if (shouldReplaceOffers) {
-    // submit funding offer only when target offers differ from current offers
-    if (process.env.NODE_ENV === "development") {
+    const offers = await getFundingOffers(
+      avaliableBalance + currentOfferAmount,
+      ccy,
+    );
+    const hasNoCurrentAndNoTarget =
+      currentOffers.length === 0 && offers.length === 0;
+    const shouldReplaceOffers = !isSameOfferSet(currentOffers, offers);
+
+    if (hasNoCurrentAndNoTarget) {
       console.log(
-        `Offers changed, replacing funding offers (current=${currentOffers.length}, target=${offers.length})`,
+        `${toTime()}: No active offers and strategy generated no offers, skip submit`,
       );
-      offers.forEach((offer) => console.log(readableOffer(offer)));
+    } else if (shouldReplaceOffers) {
+      // submit funding offer only when target offers differ from current offers
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          `Offers changed, replacing funding offers (current=${currentOffers.length}, target=${offers.length})`,
+        );
+        offers.forEach((offer) => console.log(readableOffer(offer)));
+      } else {
+        await cancelAllFundingOffers(ccy);
+        await sleep(1000);
+        await asyncForEach(offers, async (offer) => {
+          await submitFundingOffer(offer);
+          await sleep(500);
+        });
+      }
     } else {
-      await cancelAllFundingOffers(ccy);
-      await asyncForEach(offers, async (offer) => {
-        await submitFundingOffer(offer);
-        await sleep(500);
-      });
+      console.log(
+        `${toTime()}: Offers unchanged (count=${offers.length}), skip cancel and resubmit`,
+      );
     }
-  } else {
-    console.log(
-      `${toTime()}: Offers unchanged (count=${offers.length}), skip cancel and resubmit`,
-    );
-  }
 
-  if (showDetail) {
-    printStatus(balance, lending, offers);
+    if (showDetail) {
+      printStatus(balance, lending, offers);
+    }
+  } catch (error) {
+    console.error(
+      `${toTime()}: Failed to submit funding offers for ${ccy}`,
+      error,
+    );
   }
 }
 
