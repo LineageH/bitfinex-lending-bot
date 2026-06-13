@@ -75,8 +75,16 @@ const client = new RESTv2({
 
 const DEFAULT_CCY = "USD";
 
+// Serialize all API calls so nonces are always issued in order.
+let _apiQueue = Promise.resolve();
+function enqueue(fn) {
+  const result = _apiQueue.then(() => fn());
+  _apiQueue = result.catch(() => {});
+  return result;
+}
+
 async function getWallet(ccy = DEFAULT_CCY) {
-  const wallets = await client.wallets();
+  const wallets = await enqueue(() => client.wallets());
   const wallet = wallets.find(
     (w) => w.type === "funding" && w.currency === ccy,
   );
@@ -89,30 +97,11 @@ async function getWallet(ccy = DEFAULT_CCY) {
   return walletInfo;
 }
 
-async function getBalance(ccy = DEFAULT_CCY) {
-  const wallets = await client.wallets();
-  const wallet = wallets.find(
-    (w) => w.type === "funding" && w.currency === ccy,
-  );
-  if (wallet) {
-    return wallet.balance;
-  }
-  return 0;
-}
-
-async function getAvailableBalance(ccy = DEFAULT_CCY) {
-  const balance = await client.calcAvailableBalance({
-    symbol: `f${ccy}`,
-    dir: 0,
-    rate: 0,
-    type: "FUNDING",
-  });
-  return Math.abs(balance[0]); // not sure why the value is negative
-}
-
 async function getCurrentLending(ccy = DEFAULT_CCY) {
   // get current active lending
-  return (await client.fundingCredits({ symbol: `f${ccy}` })).map((c) => ({
+  return (
+    await enqueue(() => client.fundingCredits({ symbol: `f${ccy}` }))
+  ).map((c) => ({
     id: c.id,
     amount: c.amount,
     rate: c.rate,
@@ -123,20 +112,22 @@ async function getCurrentLending(ccy = DEFAULT_CCY) {
 
 async function getCurrentFundingOffers(ccy = DEFAULT_CCY) {
   // get current active funding offers (not executed yet)
-  return (await client.fundingOffers({ symbol: `f${ccy}` })).map((offer) => ({
-    id: offer.id,
-    amount: offer.amount,
-    rate: offer.rate,
-    period: offer.period,
-    time: offer.mtsCreate || offer.mtsCreated || offer.mtsUpdate || Date.now(),
-  }));
+  return (await enqueue(() => client.fundingOffers({ symbol: `f${ccy}` }))).map(
+    (offer) => ({
+      id: offer.id,
+      amount: offer.amount,
+      rate: offer.rate,
+      period: offer.period,
+      time:
+        offer.mtsCreate || offer.mtsCreated || offer.mtsUpdate || Date.now(),
+    }),
+  );
 }
 
 async function getFundingTrades(ccy = DEFAULT_CCY, sinceMtsCreate = null) {
-  const records = await client.fundingTrades({
-    symbol: `f${ccy}`,
-    limit: 50,
-  });
+  const records = await enqueue(() =>
+    client.fundingTrades({ symbol: `f${ccy}`, limit: 50 }),
+  );
 
   return records
     .map((trade) => {
@@ -157,7 +148,7 @@ async function getFundingTrades(ccy = DEFAULT_CCY, sinceMtsCreate = null) {
 }
 
 async function cancelAllFundingOffers(ccy = DEFAULT_CCY) {
-  return await client.cancelAllFundingOffers({ currency: ccy });
+  return await enqueue(() => client.cancelAllFundingOffers({ currency: ccy }));
 }
 
 async function submitFundingOffer({
@@ -166,19 +157,23 @@ async function submitFundingOffer({
   period = 2,
   ccy = DEFAULT_CCY,
 }) {
-  return await client.submitFundingOffer({
-    offer: new FundingOffer({
-      type: "LIMIT",
-      symbol: `f${ccy}`,
-      rate,
-      amount,
-      period,
+  return await enqueue(() =>
+    client.submitFundingOffer({
+      offer: new FundingOffer({
+        type: "LIMIT",
+        symbol: `f${ccy}`,
+        rate,
+        amount,
+        period,
+      }),
     }),
-  });
+  );
 }
 
 async function getFundingBook(ccy = DEFAULT_CCY) {
-  const book = await client.orderBook({ symbol: `f${ccy}`, prec: "P0" });
+  const book = await enqueue(() =>
+    client.orderBook({ symbol: `f${ccy}`, prec: "P0" }),
+  );
   return {
     request: book.filter((item) => item[3] < 0),
     offer: book.filter((item) => item[3] > 0),
@@ -192,12 +187,14 @@ async function getFundingEarning(ccy = null) {
   if (ccy) {
     filters.ccy = ccy;
   }
-  const res = await client.ledgers({
-    filters,
-    start: now - ONE_DAY_IN_MS * 30,
-    end: now,
-    limit: 500,
-  });
+  const res = await enqueue(() =>
+    client.ledgers({
+      filters,
+      start: now - ONE_DAY_IN_MS * 30,
+      end: now,
+      limit: 500,
+    }),
+  );
 
   const earnings = res
     .map((r) => ({
@@ -212,15 +209,13 @@ async function getFundingEarning(ccy = null) {
 }
 
 async function fetchFRR(ccy = DEFAULT_CCY) {
-  const t = await client.ticker({ symbol: `f${ccy}` });
+  const t = await enqueue(() => client.ticker({ symbol: `f${ccy}` }));
   return t.frr || 0.00000001; // fallback to a very low rate if FRR is not available
 }
 
 module.exports = {
   client,
   getWallet,
-  getBalance,
-  getAvailableBalance,
   getCurrentLending,
   getCurrentFundingOffers,
   getFundingTrades,

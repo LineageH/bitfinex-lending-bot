@@ -1,7 +1,6 @@
 const bitfinext = require("./bitfinex");
 const {
-  getBalance,
-  getAvailableBalance,
+  getWallet,
   getCurrentLending,
   getCurrentFundingOffers,
   cancelAllFundingOffers,
@@ -186,10 +185,11 @@ function printStatus(balance, lending, offers) {
 
 async function main({ showDetail = false, ccy = "USD" } = {}) {
   try {
-    const balance = await getBalance(ccy);
+    const wallet = await getWallet(ccy);
+    const balance = wallet.balance;
+    const avaliableBalance = wallet.availableBalance;
     const lending = await getCurrentLending(ccy);
     const currentOffers = await getCurrentFundingOffers(ccy);
-    const avaliableBalance = await getAvailableBalance(ccy);
     const currentOfferAmount = currentOffers.reduce(
       (sum, offer) => sum + Math.abs(Number(offer.amount || 0)),
       0,
@@ -221,11 +221,11 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
     } else if (shouldReplaceOffers) {
       // submit funding offer only when target offers differ from current offers
       await cancelAllFundingOffers(ccy);
-      await sleep(2000);
+      await sleep(500);
       try {
         await asyncForEach(offers, async (offer) => {
           await submitFundingOffer(offer);
-          await sleep(1000);
+          await sleep(500);
         });
       } catch (error) {
         if (error.response !== undefined) {
