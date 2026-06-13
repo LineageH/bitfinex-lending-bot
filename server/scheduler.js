@@ -33,10 +33,7 @@ async function checkNewLendingAndNotify() {
   try {
     for (const ccy of currencies) {
       const lastMtsCreate = latestCreditMtsByCurrency.get(ccy);
-      const credits = await bitfinex.getFundingCreditHistory(
-        ccy,
-        lastMtsCreate,
-      );
+      const credits = await bitfinex.getFundingTrades(ccy, lastMtsCreate);
 
       if (lastMtsCreate == null) {
         if (credits.length > 0) {

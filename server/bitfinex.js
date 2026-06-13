@@ -54,32 +54,26 @@ async function getCurrentFundingOffers(ccy = DEFAULT_CCY) {
   }));
 }
 
-async function getFundingCreditHistory(
-  ccy = DEFAULT_CCY,
-  sinceMtsCreate = null,
-) {
-  const records = await client.fundingCreditHistory({
+async function getFundingTrades(ccy = DEFAULT_CCY, sinceMtsCreate = null) {
+  const records = await client.fundingTrades({
     symbol: `f${ccy}`,
     limit: 50,
   });
 
   return records
-    .map((credit) => {
-      const status = String(credit.status || "").toUpperCase();
+    .map((trade) => {
       const mtsCreate =
-        credit.mtsCreate || credit.mts_create || credit.mtsCreated || 0;
+        trade.mtsCreate || trade.mts_create || trade.mtsCreated || 0;
       return {
-        id: credit.id,
-        amount: credit.amount,
-        rate: credit.rate,
-        period: credit.period,
-        status,
+        id: trade.id,
+        amount: trade.amount,
+        rate: trade.rate,
+        period: trade.period,
         mtsCreate,
       };
     })
-    .filter((credit) => credit.status === "ACTIVE")
-    .filter((credit) =>
-      sinceMtsCreate == null ? true : credit.mtsCreate > sinceMtsCreate,
+    .filter((trade) =>
+      sinceMtsCreate == null ? true : trade.mtsCreate > sinceMtsCreate,
     )
     .sort((a, b) => a.mtsCreate - b.mtsCreate);
 }
@@ -94,7 +88,7 @@ async function submitFundingOffer({
   period = 2,
   ccy = DEFAULT_CCY,
 }) {
-  return client.submitFundingOffer({
+  return await client.submitFundingOffer({
     offer: new FundingOffer({
       type: "LIMIT",
       symbol: `f${ccy}`,
@@ -150,7 +144,8 @@ module.exports = {
   getAvailableBalance,
   getCurrentLending,
   getCurrentFundingOffers,
-  getFundingCreditHistory,
+  getFundingTrades,
+  getFundingCreditHistory: getFundingTrades,
   cancelAllFundingOffers,
   submitFundingOffer,
   getFundingBook,

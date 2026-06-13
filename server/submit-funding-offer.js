@@ -98,18 +98,25 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       );
     } else if (shouldReplaceOffers) {
       // submit funding offer only when target offers differ from current offers
-      if (process.env.NODE_ENV === "development") {
-        console.log(
-          `Offers changed, replacing funding offers (current=${currentOffers.length}, target=${offers.length})`,
-        );
-        offers.forEach((offer) => console.log(readableOffer(offer)));
-      } else {
-        await cancelAllFundingOffers(ccy);
-        await sleep(1000);
+      await cancelAllFundingOffers(ccy);
+      await sleep(1000);
+      try {
         await asyncForEach(offers, async (offer) => {
           await submitFundingOffer(offer);
           await sleep(500);
         });
+      } catch (error) {
+        if (error.response !== undefined) {
+          console.log(
+            `${toTime()}: Failed to submit funding offers for ${ccy}`,
+            error.response,
+          );
+        } else {
+          console.error(
+            `${toTime()}: Failed to submit funding offers for ${ccy}`,
+            error,
+          );
+        }
       }
     } else {
       console.log(
