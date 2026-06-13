@@ -113,6 +113,8 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       currentOffers.length === 0 && offers.length === 0;
     const shouldReplaceOffers = !isSameOrNullOfferSet(currentOffers, offers);
 
+    console.log(offers);
+
     if (hasNoCurrentAndNoTarget) {
       console.log(
         `${toTime()}: No active offers and strategy generated no offers, skip submit`,
@@ -124,6 +126,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       try {
         await asyncForEach(offers, async (offer) => {
           await submitFundingOffer(offer);
+          console.log(offer);
           await sleep(500);
         });
       } catch (error) {

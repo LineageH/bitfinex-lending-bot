@@ -48,19 +48,20 @@ const splitByRate = async (
   let rate;
 
   const totalBalance = availableBalance + currentOfferAmount;
+  let reminingBalance = totalBalance;
   const WEIGHT_SUM = TIER_WEIGHTS.reduce((a, b) => a + b, 0);
 
-  while (availableBalance >= MIN_TO_LEND) {
+  while (reminingBalance >= MIN_TO_LEND) {
     amount = Math.min(
-      availableBalance,
+      reminingBalance,
       Math.max(MIN_TO_LEND, totalBalance * (TIER_WEIGHTS[i] / WEIGHT_SUM)),
     );
     amount = Math.floor(amount);
-    availableBalance -= amount;
-    if (availableBalance < MIN_TO_LEND && Math.floor(availableBalance) > 0) {
-      amount += availableBalance;
+    reminingBalance -= amount;
+    if (reminingBalance < MIN_TO_LEND && Math.floor(reminingBalance) > 0) {
+      amount += reminingBalance;
       amount = Math.floor(amount);
-      availableBalance = 0;
+      reminingBalance = 0;
     }
     if (amount < MIN_TO_LEND) break;
     rate = baseRate * (TIER_RATE_MULTIPLIERS[i] || TIER_RATE_MULTIPLIERS[0]);

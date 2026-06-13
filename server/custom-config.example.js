@@ -1,6 +1,6 @@
 module.exports = {
   SubmitTime: 3, // The time gap to submit the funding offer (in minutes)
-  LendingNotifyInterval: 5, // The time gap to check new lending and send Telegram notifications (in minutes), set 0 to disable
+  LendingNotifyInterval: 15, // The time gap to check new lending and send Telegram notifications (in minutes), set 0 to disable
   TELEGRAM_LANGUAGE: "en", // Telegram message language: en or zh-TW
   Strategy: {
     // The default strategy is splitByRate, you need to edit the code in server/submit-funding-offer.js to change the strategy

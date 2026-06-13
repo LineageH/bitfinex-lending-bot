@@ -267,7 +267,7 @@ async function getData() {
         ? (interest / total).toFixed(2)
         : "0"; // interest rate of provided lending
     const providedAmount = total.toFixed(2); // total amount of provided lending
-    const remindingAmount = (balance - total).toFixed(2); // remaining amount of the funding wallet
+    const remindingAmount = (balance - total - availableBalance).toFixed(2); // remaining amount of the funding wallet
     const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
 
     const frrRate = (compoundInterest(await getFRR(ccy)) * 100).toFixed(2); // interest rate of the FRR

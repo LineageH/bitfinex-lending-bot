@@ -79,7 +79,7 @@ async function getFundingTrades(ccy = DEFAULT_CCY, sinceMtsCreate = null) {
 }
 
 async function cancelAllFundingOffers(ccy = DEFAULT_CCY) {
-  return client.cancelAllFundingOffers({ currency: ccy });
+  return await client.cancelAllFundingOffers({ currency: ccy });
 }
 
 async function submitFundingOffer({
