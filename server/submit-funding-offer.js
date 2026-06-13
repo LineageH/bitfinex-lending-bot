@@ -16,8 +16,18 @@ const {
 } = require("./utils");
 const Stratege = require("./strategy");
 
-async function getFundingOffers(avaliableBalance, ccy) {
-  return Stratege.splitByRate(avaliableBalance, ccy); // You can change the strategy here, for example: Stratege.splitPyramidally(avaliableBalance, ccy);
+async function getFundingOffers(
+  ccy,
+  avaliableBalance,
+  currentOfferAmount,
+  currentOfferRateMin,
+) {
+  return Stratege.splitByRate(
+    ccy,
+    avaliableBalance,
+    currentOfferAmount,
+    currentOfferRateMin,
+  ); // You can change the strategy here
 }
 
 function toOfferKey(offer) {
@@ -28,7 +38,11 @@ function toOfferKey(offer) {
   ].join("|");
 }
 
-function isSameOfferSet(currentOffers, targetOffers) {
+function isSameOrNullOfferSet(currentOffers, targetOffers) {
+  if (targetOffers.length === 0) {
+    return true;
+  }
+
   if (currentOffers.length !== targetOffers.length) {
     return false;
   }
@@ -84,13 +98,20 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       (sum, offer) => sum + Math.abs(Number(offer.amount || 0)),
       0,
     );
+    const currentOfferRateMin = currentOffers.reduce(
+      (min, offer) =>
+        Math.min(min, Number(offer.rate || Number.POSITIVE_INFINITY)),
+      Number.POSITIVE_INFINITY,
+    );
     const offers = await getFundingOffers(
-      avaliableBalance + currentOfferAmount,
       ccy,
+      avaliableBalance,
+      currentOfferAmount,
+      currentOfferRateMin,
     );
     const hasNoCurrentAndNoTarget =
       currentOffers.length === 0 && offers.length === 0;
-    const shouldReplaceOffers = !isSameOfferSet(currentOffers, offers);
+    const shouldReplaceOffers = !isSameOrNullOfferSet(currentOffers, offers);
 
     if (hasNoCurrentAndNoTarget) {
       console.log(
@@ -99,7 +120,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
     } else if (shouldReplaceOffers) {
       // submit funding offer only when target offers differ from current offers
       await cancelAllFundingOffers(ccy);
-      await sleep(1000);
+      await sleep(2000);
       try {
         await asyncForEach(offers, async (offer) => {
           await submitFundingOffer(offer);
@@ -119,9 +140,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
         }
       }
     } else {
-      console.log(
-        `${toTime()}: Offers unchanged (count=${offers.length}), skip cancel and resubmit`,
-      );
+      console.log(`${toTime()}: Offers unchanged, skip submit for ${ccy}`);
     }
 
     if (showDetail) {

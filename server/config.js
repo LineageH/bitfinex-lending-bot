@@ -8,6 +8,8 @@ module.exports = {
   API_SECRET: process.env.API_SECRET,
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
+  TELEGRAM_LANGUAGE:
+    process.env.TELEGRAM_LANGUAGE || customConfig.TELEGRAM_LANGUAGE || "en",
   LEND: {
     USD: process.env.LEND_USD === "true",
     USDT: process.env.LEND_USDT === "true",

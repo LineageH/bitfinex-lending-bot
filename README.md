@@ -53,6 +53,8 @@ LEND_USDT=true # Lending USDT [true/false]
 
 3. Copy `server/custom-config.example.js` to `server/custom-config.js`, you may edit the variable of the lending strategy.
 
+Optional: you can also set `TELEGRAM_LANGUAGE` in `server/custom-config.js` (for example `"zh-TW"`).
+
 ## Choose one of the following method to run the bot:
 
 1. Run by PM2 on Linux / MacOS
@@ -94,6 +96,8 @@ pnpm run start
 ```
 
 ## Telegram Bot Commands
+
+Telegram messages now support English and Traditional Chinese. Set `TELEGRAM_LANGUAGE` to `en` or `zh-TW`.
 
 ```
 /summary - Show lending summary

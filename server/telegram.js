@@ -1,6 +1,5 @@
 const { Table } = require("voici.js");
 const Telegram = require("node-telegram-bot-api");
-const NodeCache = require("node-cache");
 const moment = require("moment-timezone");
 const checkAndSubmitOffer = require("./submit-funding-offer");
 const syncEarning = require("./sync-funding-earning");
@@ -8,31 +7,35 @@ const { compoundInterest, getLowRate, getFRR } = require("./utils");
 const bitfinext = require("./bitfinex");
 const config = require("./config");
 const db = require("./db");
-
-const cache = new NodeCache();
+const { getTelegramI18n } = require("./i18n/telegram");
 
 const client = new Telegram(config.TELEGRAM_BOT_TOKEN, { polling: true });
+const { t, dateLocale: DATE_LOCALE } = getTelegramI18n(
+  config.TELEGRAM_LANGUAGE,
+);
+
+const toSymbol = (ccy) => (ccy === "USD" ? "USD" : "USDT");
 
 const login = async () => {
   client.setMyCommands([
     {
       command: "/summary",
-      description: "Show lending summary",
+      description: t("cmdSummary"),
     },
     {
       command: "/earnings",
-      description: "Earnings details - 7 days",
+      description: t("cmdEarnings"),
     },
     {
       command: "/provided",
-      description: "Provided leading details",
+      description: t("cmdProvided"),
     },
     {
       command: "/syncearnings",
-      description: "Sync funding earnings",
+      description: t("cmdSyncEarnings"),
     },
-    { command: "/submitoffers", description: "Submit funding offers" },
-    { command: "/listoffer", description: "List open funding offers" },
+    { command: "/submitoffers", description: t("cmdSubmitOffers") },
+    { command: "/listoffer", description: t("cmdListOffer") },
   ]);
 
   client.onText(/\/summary/, async (msg) => {
@@ -40,45 +43,45 @@ const login = async () => {
       if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
         const data = await getData();
         for (const d of data) {
-          let summary = "Summary:\n\n";
-          const symbol = d.ccy === "USD" ? "USD" : "USDT";
-          summary += `${symbol}\n`;
-          summary += `Balance   : ${d.balance.toFixed(2)}\n`;
-          summary += `Available : ${d.availableBalance.toFixed(2)}\n`;
-          summary += `Provided  : ${d.providedAmount} (${((d.providedAmount / (d.balance || 1)) * 100).toFixed(2)}%)\n`;
-          summary += `Offered   : ${d.remindingAmount}\n`;
-          summary += `Provided  : ${d.providedRate || 0}%\n`;
-          summary += `Effective : ${(((d.providedRate || 0) * d.providedAmount) / (d.balance || 1)).toFixed(2)}%\n`;
-          summary += `Mkt. Low  : ${d.rate}%\n`;
-          summary += `FRR       : ${d.frrRate}%\n`;
-          summary += `Earning   : ${d.totalEarnings} (Last 30 Days)\n`;
-          summary += `Life Time : ${d.lifeTimeEarnings} (From ${d.fistDate})\n`;
-          await sendMessage("```" + summary + "```");
+          const symbol = toSymbol(d.ccy);
+          let summary = `👾<b>${t("summaryTitle", { symbol })}</b>\n`;
+          summary += `${t("balance")} : ${d.balance.toFixed(2)}\n`;
+          summary += `${t("available")} : ${d.availableBalance.toFixed(2)}\n`;
+          summary += `${t("marketLow")}  : ${d.rate}%\n`;
+          summary += `${t("frr")} : ${d.frrRate}%\n\n`;
+
+          summary += `📊<b>${t("lendingStatus")}</b>\n`;
+          summary += `${t("provided")}  : ${d.providedAmount} (${((d.providedAmount / (d.balance || 1)) * 100).toFixed(2)}%)\n`;
+          summary += `${t("offered")} : ${d.remindingAmount}\n`;
+          summary += `${t("provided")}  : ${d.providedRate || 0}%\n`;
+          summary += `${t("effective")} : ${(((d.providedRate || 0) * d.providedAmount) / (d.balance || 1)).toFixed(2)}%\n`;
+          summary += `${t("earning30d")} : ${d.totalEarnings} (${t("last30Days")})\n`;
+          summary += `${t("lifetime")} : ${d.lifeTimeEarnings} (${t("fromDate", { date: d.fistDate })})\n`;
+          await sendMessage(summary, { parse_mode: "HTML" });
         }
       }
     } catch (error) {
       console.error("Error in /summary command:", error);
-      await sendMessage("An error occurred while fetching the summary.");
+      await sendMessage(t("summaryError"));
     }
   });
 
   client.onText(/\/earnings/, async (msg) => {
     if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
       const data = await getData();
-      let earnings = "Earnings:\n\n";
       for (const d of data) {
-        const symbol = d.ccy === "USD" ? "USD" : "USDT";
-        earnings += `${symbol}\n`;
+        const symbol = toSymbol(d.ccy);
+        let earnings = `💰<b>${t("earningsTitle", { symbol })}</b>\n\n`;
         for (const e of d.earnings) {
-          const date = new Date(e.mts).toLocaleDateString("en-US", {
+          const date = new Date(e.mts).toLocaleDateString(DATE_LOCALE, {
             month: "short",
             day: "2-digit",
           });
           earnings += `${date}: ${e.amount.toFixed(2)}\n`;
         }
         earnings += "\n";
+        await sendMessage(earnings, { parse_mode: "HTML" });
       }
-      await sendMessage("```" + earnings + "```");
     }
   });
 
@@ -86,14 +89,14 @@ const login = async () => {
     if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
       const data = await getData();
       for (const d of data) {
-        const symbol = d.ccy === "USD" ? "USD" : "USDT";
-        let provided = `Provided ${symbol}:\n\n`;
+        const symbol = toSymbol(d.ccy);
+        let provided = `🧾<b>${t("providedTitle", { symbol })}</b>\n\n`;
         provided += `${d.tableString}\n\n`;
-        provided += `Total     : ${d.providedAmount}\n`;
-        provided += `Avg Rate  : ${d.providedRate}%\n`;
-        provided += `Remaining : ${d.remindingAmount}\n`;
-        provided += `FRR       : ${d.frrRate}%\n`;
-        await sendMessage("```" + provided + "```");
+        provided += `${t("total")} : ${d.providedAmount}\n`;
+        provided += `${t("avgRate")}  : ${d.providedRate}%\n`;
+        provided += `${t("remaining")} : ${d.remindingAmount}\n`;
+        provided += `${t("frr")} : ${d.frrRate}%\n`;
+        await sendMessage(provided, { parse_mode: "HTML" });
       }
     }
   });
@@ -101,20 +104,24 @@ const login = async () => {
   client.onText(/\/syncearnings/, async (msg) => {
     if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
       syncEarning();
-      await sendMessage("Funding earnings updated successfully");
+      await sendMessage(t("syncEarningsDone"));
     }
   });
 
   client.onText(/\/submitoffers/, async (msg) => {
     if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
-      await sendMessage("Submitting funding offers");
+      await sendMessage(t("submittingOffers"));
       if (config.LEND.USD) await checkAndSubmitOffer();
       if (config.LEND.USDT) await checkAndSubmitOffer({ ccy: "UST" });
-      await sendMessage("Funding offers submitted successfully");
+      listOpenOffers(msg);
     }
   });
 
   client.onText(/\/listoffer/, async (msg) => {
+    await listOpenOffers(msg);
+  });
+
+  async function listOpenOffers(msg) {
     try {
       if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
         const currencies = [];
@@ -122,18 +129,18 @@ const login = async () => {
         if (config.LEND.USDT) currencies.push("UST");
 
         if (currencies.length === 0) {
-          await sendMessage("```Lending is disabled in config\n```");
+          await sendMessage(t("lendingDisabled") + "\n");
           return;
         }
 
         for (const ccy of currencies) {
           const offers = await bitfinext.getCurrentFundingOffers(ccy);
-          const symbol = ccy === "USD" ? "USD" : "USDT";
+          const symbol = toSymbol(ccy);
 
           if (offers.length === 0) {
-            await sendMessage(
-              "```No open funding offers (" + symbol + ")\n```",
-            );
+            let content = `🎯<b>${t("offersTitle", { symbol })}</b>\n`;
+            content += t("noOpenOffers") + "\n";
+            await sendMessage(content, { parse_mode: "HTML" });
             continue;
           }
 
@@ -142,9 +149,9 @@ const login = async () => {
             0,
           );
 
-          let content = `\nOffers (${symbol})\n`;
-          content += `Count : ${offers.length}\n`;
-          content += `Total : ${total.toFixed(2)}\n\n`;
+          let content = `🎯<b>${t("offersTitle", { symbol })}</b>\n`;
+          content += `${t("count")} : ${offers.length}\n`;
+          content += `${t("total")} : ${total.toFixed(2)}\n\n`;
 
           offers.slice(0, 20).forEach((offer, index) => {
             const rate = (compoundInterest(offer.rate || 0) * 100).toFixed(2);
@@ -153,25 +160,21 @@ const login = async () => {
           });
 
           if (offers.length > 20) {
-            content += `...and ${offers.length - 20} more\n`;
+            content += `${t("andMore", { count: offers.length - 20 })}\n`;
           }
 
-          await sendMessage("```" + content + "```");
+          await sendMessage(content, { parse_mode: "HTML" });
         }
       }
     } catch (error) {
       console.error("Error in /listoffer command:", error);
-      await sendMessage(
-        "An error occurred while fetching open funding offers.",
-      );
+      await sendMessage(t("listOfferError"));
     }
-  });
+  }
 };
 
-const sendMessage = async (msg) => {
-  return await client.sendMessage(config.TELEGRAM_CHAT_ID, msg, {
-    parse_mode: "MarkdownV2",
-  });
+const sendMessage = async (msg, options = {}) => {
+  return await client.sendMessage(config.TELEGRAM_CHAT_ID, msg, options);
 };
 
 const notifyNewLending = async ({ ccy, loans }) => {
@@ -179,10 +182,10 @@ const notifyNewLending = async ({ ccy, loans }) => {
     return;
   }
 
-  const symbol = ccy === "USD" ? "USD" : "USDT";
+  const symbol = toSymbol(ccy);
   const total = loans.reduce((acc, loan) => acc + Number(loan.amount || 0), 0);
 
-  let message = `\nNew ${symbol} Transactions (${loans.length})\n`;
+  let message = `🔥${t("newTransactionsTitle", { symbol, count: loans.length })}\n`;
 
   loans.slice(0, 10).forEach((loan, index) => {
     const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
@@ -190,10 +193,10 @@ const notifyNewLending = async ({ ccy, loans }) => {
   });
 
   if (loans.length > 10) {
-    message += `...and ${loans.length - 10} more\n`;
+    message += `${t("andMore", { count: loans.length - 10 })}\n`;
   }
 
-  await sendMessage("```" + message + "```");
+  await sendMessage(message);
 };
 
 module.exports = {
@@ -241,11 +244,11 @@ async function getData() {
       header: {
         include: ["amount", "period", "rate", "count", "fromNow"],
         displayNames: {
-          amount: "Amount",
-          period: "Period",
-          rate: "Rate",
-          count: "Count",
-          fromNow: "Expires",
+          amount: t("tableAmount"),
+          period: t("tablePeriod"),
+          rate: t("tableRate"),
+          count: t("tableCount"),
+          fromNow: t("tableExpires"),
         },
       },
     };
@@ -303,7 +306,7 @@ async function getData() {
     lifeEarnings.forEach((e) => {
       if (e.currency === ccy) {
         lifeTimeEarnings += e.amount;
-        fistDate = new Date(e.mts).toLocaleDateString("en-US", {
+        fistDate = new Date(e.mts).toLocaleDateString(DATE_LOCALE, {
           month: "short",
           day: "2-digit",
           year: "2-digit",
@@ -332,12 +335,7 @@ async function getData() {
     return [];
   }
 
-  let data = cache.get("data");
-  if (data) {
-    return data;
-  }
-
-  data = [];
+  const data = [];
 
   if (config.LEND.USD) {
     const usdData = await getDataByCurrency("USD");
@@ -348,8 +346,6 @@ async function getData() {
     const ustData = await getDataByCurrency("UST");
     data.push(ustData);
   }
-
-  cache.set("data", data, 10);
 
   return data;
 }

@@ -72,7 +72,6 @@ module.exports = () => {
   console.log("start scheduler");
 
   schedule.scheduleJob(`*/${SUBMIT_TIME} * * * *`, async function () {
-    console.log(`${toTime()}: Check and submit funding offers automatically`);
     if (LEND.USD) await checkAndSubmitOffer();
     if (LEND.USDT) await checkAndSubmitOffer({ ccy: "UST" });
   });
