@@ -27,7 +27,7 @@ function formatReduceRate(ccy) {
   }
 
   const factor = Number(status.reduceFactor || 1);
-  const pct = (factor * 100).toFixed(2);
+  const pct = (factor * 100 - 100).toFixed(2);
   return t("autoReduceRateLine", { rate: pct });
 }
 

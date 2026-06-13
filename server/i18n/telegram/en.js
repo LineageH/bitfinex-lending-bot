@@ -40,5 +40,5 @@ module.exports = {
   tableExpires: "Expires",
   frr: "FRR",
   lendingStatus: "Lending Status",
-  autoReduceRateLine: "Auto Reduce Rate: {{rate}}% of base",
+  autoReduceRateLine: "Auto Reduce Rate: {{rate}}%",
 };
