@@ -44,13 +44,13 @@ const login = async () => {
         const data = await getData();
         for (const d of data) {
           const symbol = toSymbol(d.ccy);
-          let summary = `👾<b>${t("summaryTitle", { symbol })}</b>\n`;
+          let summary = `👾 <b>${t("summaryTitle", { symbol })}</b>\n`;
           summary += `${t("balance")} : ${d.balance.toFixed(2)}\n`;
           summary += `${t("available")} : ${d.availableBalance.toFixed(2)}\n`;
           summary += `${t("marketLow")}  : ${d.rate}%\n`;
           summary += `${t("frr")} : ${d.frrRate}%\n\n`;
 
-          summary += `📊<b>${t("lendingStatus")}</b>\n`;
+          summary += `📊 <b>${t("lendingStatus")}</b>\n`;
           summary += `${t("provided")}  : ${d.providedAmount} (${((d.providedAmount / (d.balance || 1)) * 100).toFixed(2)}%)\n`;
           summary += `${t("offered")} : ${d.remindingAmount}\n`;
           summary += `${t("providedRate")}  : ${d.providedRate || 0}%\n`;
@@ -71,7 +71,7 @@ const login = async () => {
       const data = await getData();
       for (const d of data) {
         const symbol = toSymbol(d.ccy);
-        let earnings = `💰<b>${t("earningsTitle", { symbol })}</b>\n\n`;
+        let earnings = `💰 <b>${t("earningsTitle", { symbol })}</b>\n\n`;
         for (const e of d.earnings) {
           const date = new Date(e.mts).toLocaleDateString(DATE_LOCALE, {
             month: "short",
@@ -90,7 +90,7 @@ const login = async () => {
       const data = await getData();
       for (const d of data) {
         const symbol = toSymbol(d.ccy);
-        let provided = `🧾<b>${t("providedTitle", { symbol })}</b>\n\n`;
+        let provided = `🧾 <b>${t("providedTitle", { symbol })}</b>\n\n`;
         provided += `${d.tableString}\n\n`;
         provided += `${t("total")} : ${d.providedAmount}\n`;
         provided += `${t("avgRate")}  : ${d.providedRate}%\n`;
@@ -138,7 +138,7 @@ const login = async () => {
           const symbol = toSymbol(ccy);
 
           if (offers.length === 0) {
-            let content = `🎯<b>${t("offersTitle", { symbol })}</b>\n`;
+            let content = `🎯 <b>${t("offersTitle", { symbol })}</b>\n`;
             content += t("noOpenOffers") + "\n";
             await sendMessage(content, { parse_mode: "HTML" });
             continue;
@@ -149,7 +149,7 @@ const login = async () => {
             0,
           );
 
-          let content = `🎯<b>${t("offersTitle", { symbol })}</b>\n`;
+          let content = `🎯 <b>${t("offersTitle", { symbol })}</b>\n`;
           content += `${t("count")} : ${offers.length}\n`;
           content += `${t("total")} : ${total.toFixed(2)}\n\n`;
 
@@ -185,7 +185,7 @@ const notifyNewLending = async ({ ccy, loans }) => {
   const symbol = toSymbol(ccy);
   const total = loans.reduce((acc, loan) => acc + Number(loan.amount || 0), 0);
 
-  let message = `🔥${t("newTransactionsTitle", { symbol, count: loans.length })}\n`;
+  let message = `🔥 <b>${t("newTransactionsTitle", { symbol, count: loans.length })}</b>\n`;
 
   loans.slice(0, 10).forEach((loan, index) => {
     const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
@@ -196,7 +196,7 @@ const notifyNewLending = async ({ ccy, loans }) => {
     message += `${t("andMore", { count: loans.length - 10 })}\n`;
   }
 
-  await sendMessage(message);
+  await sendMessage(message, { parse_mode: "HTML" });
 };
 
 module.exports = {
