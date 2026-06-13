@@ -53,7 +53,7 @@ const login = async () => {
           summary += `📊<b>${t("lendingStatus")}</b>\n`;
           summary += `${t("provided")}  : ${d.providedAmount} (${((d.providedAmount / (d.balance || 1)) * 100).toFixed(2)}%)\n`;
           summary += `${t("offered")} : ${d.remindingAmount}\n`;
-          summary += `${t("provided")}  : ${d.providedRate || 0}%\n`;
+          summary += `${t("providedRate")}  : ${d.providedRate || 0}%\n`;
           summary += `${t("effective")} : ${(((d.providedRate || 0) * d.providedAmount) / (d.balance || 1)).toFixed(2)}%\n`;
           summary += `${t("earning30d")} : ${d.totalEarnings} (${t("last30Days")})\n`;
           summary += `${t("lifetime")} : ${d.lifeTimeEarnings} (${t("fromDate", { date: d.fistDate })})\n`;

@@ -9,6 +9,7 @@ module.exports = {
   balance: "Balance",
   available: "Available",
   provided: "Provided",
+  providedRate: "Avg Rate",
   offered: "Offered",
   effective: "Effective",
   marketLow: "Mkt. Low",
