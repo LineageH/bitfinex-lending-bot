@@ -1,6 +1,70 @@
+const fs = require("fs");
+const path = require("path");
+const config = require("./config");
+
+const nonceStatePath = path.join(__dirname, ".bitfinex-nonce");
+
+function loadLastNonce() {
+  try {
+    const raw = fs.readFileSync(nonceStatePath, "utf8").trim();
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : 0;
+  } catch (_error) {
+    return 0;
+  }
+}
+
+function persistLastNonce(value) {
+  try {
+    fs.writeFileSync(nonceStatePath, String(value), "utf8");
+  } catch (_error) {
+    // Ignore persistence errors; in-memory monotonicity still protects the process.
+  }
+}
+
+function buildPersistentNonceGenerator() {
+  let lastNonce = loadLastNonce();
+
+  return () => {
+    const current = Date.now() * 1000;
+    lastNonce = Math.max(lastNonce + 1, current);
+    persistLastNonce(lastNonce);
+    return lastNonce;
+  };
+}
+
+function installNonceGenerator() {
+  const nonceGenerator = buildPersistentNonceGenerator();
+  const candidatePaths = [];
+
+  try {
+    candidatePaths.push(require.resolve("bfx-api-node-util/lib/nonce"));
+  } catch (_error) {}
+
+  try {
+    const rest2Path = require.resolve("bfx-api-node-rest/lib/rest2");
+    const rest2Dir = path.dirname(rest2Path);
+    candidatePaths.push(
+      require.resolve("bfx-api-node-util/lib/nonce", { paths: [rest2Dir] }),
+    );
+  } catch (_error) {}
+
+  for (const noncePath of new Set(candidatePaths)) {
+    try {
+      const nonceModule = require(noncePath);
+      if (typeof nonceModule === "function") {
+        require.cache[noncePath].exports = nonceGenerator;
+      }
+    } catch (_error) {
+      // If a candidate path cannot be loaded, keep trying the others.
+    }
+  }
+}
+
+installNonceGenerator();
+
 const { RESTv2 } = require("bfx-api-node-rest");
 const { FundingOffer } = require("bfx-api-node-models");
-const config = require("./config");
 
 const client = new RESTv2({
   apiKey: config.API_KEY,
@@ -10,6 +74,20 @@ const client = new RESTv2({
 });
 
 const DEFAULT_CCY = "USD";
+
+async function getWallet(ccy = DEFAULT_CCY) {
+  const wallets = await client.wallets();
+  const wallet = wallets.find(
+    (w) => w.type === "funding" && w.currency === ccy,
+  );
+  const walletInfo = {
+    balance: wallet ? wallet.balance : 0,
+    availableBalance: wallet ? wallet.balanceAvailable : 0,
+    offersBalance: 0,
+  };
+  walletInfo.offersBalance = walletInfo.balance - walletInfo.availableBalance;
+  return walletInfo;
+}
 
 async function getBalance(ccy = DEFAULT_CCY) {
   const wallets = await client.wallets();
@@ -140,6 +218,7 @@ async function fetchFRR(ccy = DEFAULT_CCY) {
 
 module.exports = {
   client,
+  getWallet,
   getBalance,
   getAvailableBalance,
   getCurrentLending,

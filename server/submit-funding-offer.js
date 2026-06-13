@@ -15,18 +15,114 @@ const {
   asyncForEach,
 } = require("./utils");
 const Stratege = require("./strategy");
+const {
+  Strategy: strategyConfig,
+  AutoReduce: autoReduceConfig,
+} = require("./config");
+
+const autoReduceStateByCurrency = new Map();
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function toFiniteNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function getAutoReduceFactor({
+  ccy,
+  balance,
+  availableBalance,
+  currentOfferAmount,
+}) {
+  const autoReduce = autoReduceConfig || {};
+  const AUTO_REDUCE_RATE = autoReduce.AUTO_REDUCE_RATE === true;
+
+  if (!AUTO_REDUCE_RATE || balance <= 0) {
+    autoReduceStateByCurrency.delete(ccy);
+    return 1;
+  }
+
+  const AUTO_REDUCE_TIME_GAP_MINUTES = toFiniteNumber(
+    autoReduce.AUTO_REDUCE_TIME_GAP,
+    60,
+  );
+  const AUTO_REDUCE_RATE_STEP = clampNumber(
+    toFiniteNumber(autoReduce.AUTO_REDUCE_RATE_STEP, 0.95),
+    0.000001,
+    1,
+  );
+  const AUTO_REDUCE_UNTIL_FILLED = clampNumber(
+    toFiniteNumber(autoReduce.AUTO_REDUCE_UNTIL_FILLED, 0.9),
+    0,
+    1,
+  );
+
+  const shouldHaveUnfilledRatio = Math.max(0, 1 - AUTO_REDUCE_UNTIL_FILLED);
+  const unfilledAmount = Math.max(0, availableBalance + currentOfferAmount);
+  const unfilledRatio = unfilledAmount / balance;
+  const lentAmount = Math.max(0, balance - unfilledAmount);
+
+  if (unfilledRatio <= shouldHaveUnfilledRatio) {
+    autoReduceStateByCurrency.delete(ccy);
+    return 1;
+  }
+
+  const now = Date.now();
+  const gapMs = Math.max(1, AUTO_REDUCE_TIME_GAP_MINUTES) * 60 * 1000;
+  const state = autoReduceStateByCurrency.get(ccy) || {
+    reduceFactor: 1,
+    lastProgressMts: now,
+    lastLentAmount: lentAmount,
+  };
+
+  if (lentAmount > state.lastLentAmount + 1e-8) {
+    state.lastProgressMts = now;
+    state.lastLentAmount = lentAmount;
+  }
+
+  const elapsed = now - state.lastProgressMts;
+  if (elapsed >= gapMs) {
+    state.reduceFactor *= AUTO_REDUCE_RATE_STEP;
+    state.lastProgressMts = now;
+    state.lastLentAmount = lentAmount;
+  }
+
+  autoReduceStateByCurrency.set(ccy, state);
+  return state.reduceFactor;
+}
+
+function getAutoReduceStatus(ccy) {
+  const autoReduce = autoReduceConfig || {};
+  const enabled = autoReduce.AUTO_REDUCE_RATE === true;
+  if (!enabled) {
+    return { enabled: false };
+  }
+
+  const state = autoReduceStateByCurrency.get(ccy);
+  const reduceFactor = state ? Number(state.reduceFactor || 1) : 1;
+
+  return {
+    enabled: true,
+    reduceFactor,
+  };
+}
 
 async function getFundingOffers(
   ccy,
   avaliableBalance,
   currentOfferAmount,
   currentOfferRateMin,
+  options = {},
 ) {
   return Stratege.splitByRate(
     ccy,
     avaliableBalance,
     currentOfferAmount,
     currentOfferRateMin,
+    options,
   ); // You can change the strategy here
 }
 
@@ -103,22 +199,25 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
         Math.min(min, Number(offer.rate || Number.POSITIVE_INFINITY)),
       Number.POSITIVE_INFINITY,
     );
+    const reduceRateFactor = getAutoReduceFactor({
+      ccy,
+      balance,
+      availableBalance: avaliableBalance,
+      currentOfferAmount,
+    });
+
     const offers = await getFundingOffers(
       ccy,
       avaliableBalance,
       currentOfferAmount,
       currentOfferRateMin,
+      { reduceRateFactor },
     );
     const hasNoCurrentAndNoTarget =
       currentOffers.length === 0 && offers.length === 0;
     const shouldReplaceOffers = !isSameOrNullOfferSet(currentOffers, offers);
 
-    console.log(offers);
-
     if (hasNoCurrentAndNoTarget) {
-      console.log(
-        `${toTime()}: No active offers and strategy generated no offers, skip submit`,
-      );
     } else if (shouldReplaceOffers) {
       // submit funding offer only when target offers differ from current offers
       await cancelAllFundingOffers(ccy);
@@ -126,8 +225,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       try {
         await asyncForEach(offers, async (offer) => {
           await submitFundingOffer(offer);
-          console.log(offer);
-          await sleep(500);
+          await sleep(1000);
         });
       } catch (error) {
         if (error.response !== undefined) {
@@ -136,14 +234,9 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
             error.response,
           );
         } else {
-          console.error(
-            `${toTime()}: Failed to submit funding offers for ${ccy}`,
-            error,
-          );
+          console.error(error);
         }
       }
-    } else {
-      console.log(`${toTime()}: Offers unchanged, skip submit for ${ccy}`);
     }
 
     if (showDetail) {
@@ -158,6 +251,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
 }
 
 module.exports = main;
+module.exports.getAutoReduceStatus = getAutoReduceStatus;
 
 if (require.main === module) {
   let ccy = "USD";

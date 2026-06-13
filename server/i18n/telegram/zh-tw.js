@@ -40,4 +40,5 @@ module.exports = {
   tableExpires: "到期",
   frr: "FRR",
   lendingStatus: "放貸狀態",
+  autoReduceRateLine: "自動降利率: 基準利率的 {{rate}}%",
 };

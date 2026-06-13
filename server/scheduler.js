@@ -94,7 +94,5 @@ module.exports = () => {
     });
 
     checkNewLendingAndNotify();
-  } else {
-    console.log(`${toTime()}: New lending Telegram notification is disabled`);
   }
 };

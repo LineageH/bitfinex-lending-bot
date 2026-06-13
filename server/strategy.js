@@ -12,6 +12,7 @@ const splitByRate = async (
   availableBalance,
   currentOfferAmount,
   currentOfferRateMin,
+  options = {},
 ) => {
   const CONFIG = config.splitByRate || {};
   const MIN_TO_LEND = Math.max(CONFIG.MIN_TO_LEND || 150, 150);
@@ -28,9 +29,19 @@ const splitByRate = async (
   let i = 0;
 
   const frr = await getFRR(ccy);
+  const minDailyRate = Math.pow(1 + MIN_APY, 1 / 365) - 1;
   let baseRate = frr * FRR_FACTOR;
-  const baseApr = compoundInterest(baseRate);
-  if (baseApr < MIN_APY) baseRate = Math.pow(1 + MIN_APY, 1 / 365) - 1;
+  if (compoundInterest(baseRate) < MIN_APY) {
+    baseRate = minDailyRate;
+  }
+
+  const reduceRateFactor = Number(options.reduceRateFactor || 1);
+  if (Number.isFinite(reduceRateFactor) && reduceRateFactor > 0) {
+    baseRate *= reduceRateFactor;
+  }
+  if (baseRate < minDailyRate) {
+    baseRate = minDailyRate;
+  }
 
   if (TIER_RATE_MULTIPLIERS.length < TIER_WEIGHTS.length) {
     console.warn(
@@ -39,8 +50,6 @@ const splitByRate = async (
   }
 
   if (currentOfferRateMin == baseRate && availableBalance < MIN_TO_LEND) {
-    return [];
-  } else if (availableBalance < MIN_TO_LEND) {
     return [];
   }
 

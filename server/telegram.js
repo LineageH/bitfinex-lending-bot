@@ -16,6 +16,21 @@ const { t, dateLocale: DATE_LOCALE } = getTelegramI18n(
 
 const toSymbol = (ccy) => (ccy === "USD" ? "USD" : "USDT");
 
+function formatReduceRate(ccy) {
+  if (typeof checkAndSubmitOffer.getAutoReduceStatus !== "function") {
+    return null;
+  }
+
+  const status = checkAndSubmitOffer.getAutoReduceStatus(ccy);
+  if (!status || !status.enabled) {
+    return null;
+  }
+
+  const factor = Number(status.reduceFactor || 1);
+  const pct = (factor * 100).toFixed(2);
+  return t("autoReduceRateLine", { rate: pct });
+}
+
 const login = async () => {
   client.setMyCommands([
     {
@@ -48,15 +63,20 @@ const login = async () => {
           summary += `${t("balance")} : ${d.balance.toFixed(2)}\n`;
           summary += `${t("available")} : ${d.availableBalance.toFixed(2)}\n`;
           summary += `${t("marketLow")}  : ${d.rate}%\n`;
-          summary += `${t("frr")} : ${d.frrRate}%\n\n`;
+          summary += `${t("frr")} : ${d.frrRate}%\n`;
+          const reduceRateLine = formatReduceRate(d.ccy);
+          if (reduceRateLine) {
+            summary += `${reduceRateLine}\n`;
+          }
 
-          summary += `📊 <b>${t("lendingStatus")}</b>\n`;
+          summary += `\n📊 <b>${t("lendingStatus")}</b>\n`;
           summary += `${t("provided")}  : ${d.providedAmount} (${((d.providedAmount / (d.balance || 1)) * 100).toFixed(2)}%)\n`;
-          summary += `${t("offered")} : ${d.remindingAmount}\n`;
+          summary += `${t("offered")} : ${d.offersBalance.toFixed(2)}\n`;
           summary += `${t("providedRate")}  : ${d.providedRate || 0}%\n`;
           summary += `${t("effective")} : ${(((d.providedRate || 0) * d.providedAmount) / (d.balance || 1)).toFixed(2)}%\n`;
           summary += `${t("earning30d")} : ${d.totalEarnings} (${t("last30Days")})\n`;
           summary += `${t("lifetime")} : ${d.lifeTimeEarnings} (${t("fromDate", { date: d.fistDate })})\n`;
+
           await sendMessage(summary, { parse_mode: "HTML" });
         }
       }
@@ -91,10 +111,10 @@ const login = async () => {
       for (const d of data) {
         const symbol = toSymbol(d.ccy);
         let provided = `🧾 <b>${t("providedTitle", { symbol })}</b>\n\n`;
-        provided += `${d.tableString}\n\n`;
+        provided += `<pre>${d.tableString}</pre>\n\n`;
         provided += `${t("total")} : ${d.providedAmount}\n`;
         provided += `${t("avgRate")}  : ${d.providedRate}%\n`;
-        provided += `${t("remaining")} : ${d.remindingAmount}\n`;
+        provided += `${t("remaining")} : ${(d.availableBalance + d.offersBalance).toFixed(2)}\n`;
         provided += `${t("frr")} : ${d.frrRate}%\n`;
         await sendMessage(provided, { parse_mode: "HTML" });
       }
@@ -153,6 +173,11 @@ const login = async () => {
           content += `${t("count")} : ${offers.length}\n`;
           content += `${t("total")} : ${total.toFixed(2)}\n\n`;
 
+          const reduceRateLine = formatReduceRate(ccy);
+          if (reduceRateLine) {
+            content += `${reduceRateLine}\n\n`;
+          }
+
           offers.slice(0, 20).forEach((offer, index) => {
             const rate = (compoundInterest(offer.rate || 0) * 100).toFixed(2);
             const createdAt = moment(offer.time).format("MM-DD HH:mm");
@@ -206,8 +231,10 @@ module.exports = {
 
 async function getData() {
   const getDataByCurrency = async (ccy) => {
-    const balance = await bitfinext.getBalance(ccy); // get balance of the funding wallet
-    const availableBalance = await bitfinext.getAvailableBalance(ccy); // get available balance of the funding wallet
+    const wallet = await bitfinext.getWallet(ccy); // get balance and available balance of the funding wallet
+    const balance = wallet.balance;
+    const availableBalance = wallet.availableBalance;
+    const offersBalance = wallet.offersBalance;
     const lending = (await bitfinext.getCurrentLending(ccy)).map((l) => ({
       amount: l.amount,
       period: l.period,
@@ -267,7 +294,7 @@ async function getData() {
         ? (interest / total).toFixed(2)
         : "0"; // interest rate of provided lending
     const providedAmount = total.toFixed(2); // total amount of provided lending
-    const remindingAmount = (balance - total - availableBalance).toFixed(2); // remaining amount of the funding wallet
+    const offersAmount = offersBalance.toFixed(2);
     const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
 
     const frrRate = (compoundInterest(await getFRR(ccy)) * 100).toFixed(2); // interest rate of the FRR
@@ -319,7 +346,7 @@ async function getData() {
       balance,
       availableBalance,
       providedAmount,
-      remindingAmount,
+      offersBalance,
       earnings,
       totalEarnings,
       providedRate,
