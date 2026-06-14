@@ -171,7 +171,7 @@ const login = async () => {
 
           let content = `🎯 <b>${t("offersTitle", { symbol })}</b>\n`;
           content += `${t("count")} : ${offers.length}\n`;
-          content += `${t("total")} : ${total.toFixed(2)}\n\n`;
+          content += `${t("total")} : ${total.toFixed(2)}\n`;
 
           const reduceRateLine = formatReduceRate(ccy);
           if (reduceRateLine) {

@@ -127,8 +127,8 @@ async function getFundingOffers(
 
 function toOfferKey(offer) {
   return [
-    Number(offer.amount || 0).toFixed(8),
-    Number(offer.rate || 0).toFixed(12),
+    Number(offer.amount || 0).toFixed(0),
+    Number(offer.rate || 0).toFixed(7),
     Number(offer.period || 0),
   ].join("|");
 }
@@ -222,21 +222,21 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
       // submit funding offer only when target offers differ from current offers
       await cancelAllFundingOffers(ccy);
       await sleep(500);
-      try {
-        await asyncForEach(offers, async (offer) => {
+      await asyncForEach(offers, async (offer) => {
+        try {
           await submitFundingOffer(offer);
           await sleep(500);
-        });
-      } catch (error) {
-        if (error.response !== undefined) {
-          console.log(
-            `${toTime()}: Failed to submit funding offers for ${ccy}`,
-            error.response,
-          );
-        } else {
-          console.error(error);
+        } catch (error) {
+          if (error.response !== undefined) {
+            console.log(
+              `${toTime()}: Failed to submit funding offers for ${ccy}`,
+              error.response,
+            );
+          } else {
+            throw error;
+          }
         }
-      }
+      });
     }
 
     if (showDetail) {
