@@ -91,9 +91,7 @@ async function getWallet(ccy = DEFAULT_CCY) {
   const walletInfo = {
     balance: wallet ? wallet.balance : 0,
     availableBalance: wallet ? wallet.balanceAvailable : 0,
-    offersBalance: 0,
   };
-  walletInfo.offersBalance = walletInfo.balance - walletInfo.availableBalance;
   return walletInfo;
 }
 

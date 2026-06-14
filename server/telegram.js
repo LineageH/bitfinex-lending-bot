@@ -234,7 +234,6 @@ async function getData() {
     const wallet = await bitfinext.getWallet(ccy); // get balance and available balance of the funding wallet
     const balance = wallet.balance;
     const availableBalance = wallet.availableBalance;
-    const offersBalance = wallet.offersBalance;
     const lending = (await bitfinext.getCurrentLending(ccy)).map((l) => ({
       amount: l.amount,
       period: l.period,
@@ -294,6 +293,7 @@ async function getData() {
         ? (interest / total).toFixed(2)
         : "0"; // interest rate of provided lending
     const providedAmount = total.toFixed(2); // total amount of provided lending
+    const offersBalance = balance - availableBalance - providedAmount; // total amount of open offers
     const offersAmount = offersBalance.toFixed(2);
     const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
 
