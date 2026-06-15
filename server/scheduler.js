@@ -16,6 +16,8 @@ const LENDING_NOTIFY_INTERVAL_MINUTES = Number.isNaN(parsedNotifyInterval)
   ? 5
   : parsedNotifyInterval;
 const latestCreditMtsByCurrency = new Map();
+const latestCreditIdsAtMtsByCurrency = new Map();
+let isCheckingNewLending = false;
 
 const enabledCurrencies = () => {
   const list = [];
@@ -25,37 +27,68 @@ const enabledCurrencies = () => {
 };
 
 async function checkNewLendingAndNotify() {
+  if (isCheckingNewLending) {
+    return;
+  }
+
+  isCheckingNewLending = true;
   const currencies = enabledCurrencies();
   if (currencies.length === 0) {
+    isCheckingNewLending = false;
     return;
   }
 
   try {
     for (const ccy of currencies) {
       const lastMtsCreate = latestCreditMtsByCurrency.get(ccy);
+      const lastIdsAtMts = latestCreditIdsAtMtsByCurrency.get(ccy) || new Set();
       const credits = await bitfinex.getFundingTrades(ccy, lastMtsCreate);
 
+      const newCredits = credits.filter((credit) => {
+        if (lastMtsCreate == null) {
+          return true;
+        }
+
+        if (credit.mtsCreate > lastMtsCreate) {
+          return true;
+        }
+
+        if (credit.mtsCreate < lastMtsCreate) {
+          return false;
+        }
+
+        return !lastIdsAtMts.has(String(credit.id));
+      });
+
+      if (credits.length > 0) {
+        const latestMtsCreate = credits[credits.length - 1].mtsCreate;
+        const latestIdsAtMts = new Set(
+          credits
+            .filter((credit) => credit.mtsCreate === latestMtsCreate)
+            .map((credit) => String(credit.id)),
+        );
+
+        latestCreditMtsByCurrency.set(ccy, latestMtsCreate);
+        latestCreditIdsAtMtsByCurrency.set(ccy, latestIdsAtMts);
+      }
+
       if (lastMtsCreate == null) {
-        if (credits.length > 0) {
-          latestCreditMtsByCurrency.set(
-            ccy,
-            credits[credits.length - 1].mtsCreate,
-          );
-        } else {
+        if (credits.length === 0) {
           latestCreditMtsByCurrency.set(ccy, Date.now());
+          latestCreditIdsAtMtsByCurrency.set(ccy, new Set());
         }
         continue;
       }
 
-      if (credits.length > 0) {
+      if (newCredits.length > 0) {
         if (typeof checkAndSubmitOffer.onNewLendingFilled === "function") {
           checkAndSubmitOffer.onNewLendingFilled({
             ccy,
-            fillCount: credits.length,
+            fillCount: newCredits.length,
           });
         }
 
-        const newLoans = credits.map((credit) => ({
+        const newLoans = newCredits.map((credit) => ({
           id: credit.id,
           amount: credit.amount,
           rate: credit.rate,
@@ -63,15 +96,12 @@ async function checkNewLendingAndNotify() {
           time: credit.mtsCreate,
         }));
         await telegram.notifyNewLending({ ccy, loans: newLoans });
-
-        latestCreditMtsByCurrency.set(
-          ccy,
-          credits[credits.length - 1].mtsCreate,
-        );
       }
     }
   } catch (error) {
     console.error(`${toTime()}: Failed to check new lending`, error);
+  } finally {
+    isCheckingNewLending = false;
   }
 }
 
@@ -96,10 +126,15 @@ module.exports = () => {
   });
 
   if (LENDING_NOTIFY_INTERVAL_MINUTES > 0) {
-    schedule.scheduleJob(`*/${LENDING_NOTIFY_INTERVAL_MINUTES} * * * *`, () => {
-      checkNewLendingAndNotify();
-    });
+    schedule.scheduleJob(
+      `*/${LENDING_NOTIFY_INTERVAL_MINUTES} * * * *`,
+      async () => {
+        await checkNewLendingAndNotify();
+      },
+    );
 
     checkNewLendingAndNotify();
+  } else {
+    console.log(`${toTime()}: New lending Telegram notification is disabled`);
   }
 };
