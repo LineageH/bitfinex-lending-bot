@@ -30,34 +30,50 @@ function toFiniteNumber(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function getAutoReduceSettings() {
+  const autoReduce = autoReduceConfig || {};
+  return {
+    enabled: autoReduce.AUTO_REDUCE_RATE === true,
+    timeGapMinutes: Math.max(
+      1,
+      toFiniteNumber(autoReduce.AUTO_REDUCE_TIME_GAP, 60),
+    ),
+    rateStep: clampNumber(
+      toFiniteNumber(autoReduce.AUTO_REDUCE_RATE_STEP, 0.95),
+      0.000001,
+      1,
+    ),
+    untilFilled: clampNumber(
+      toFiniteNumber(autoReduce.AUTO_REDUCE_UNTIL_FILLED, 0.9),
+      0,
+      1,
+    ),
+    // 0.5 means every 2 filled trades approximately undo 1 reduce step
+    recoverPerFill: clampNumber(
+      toFiniteNumber(autoReduce.AUTO_REDUCE_RECOVER_PER_FILL, 0.5),
+      0,
+      1,
+    ),
+  };
+}
+
 function getAutoReduceFactor({
   ccy,
   balance,
   availableBalance,
   currentOfferAmount,
 }) {
-  const autoReduce = autoReduceConfig || {};
-  const AUTO_REDUCE_RATE = autoReduce.AUTO_REDUCE_RATE === true;
+  const settings = getAutoReduceSettings();
+  const AUTO_REDUCE_RATE = settings.enabled;
 
   if (!AUTO_REDUCE_RATE || balance <= 0) {
     autoReduceStateByCurrency.delete(ccy);
     return 1;
   }
 
-  const AUTO_REDUCE_TIME_GAP_MINUTES = toFiniteNumber(
-    autoReduce.AUTO_REDUCE_TIME_GAP,
-    60,
-  );
-  const AUTO_REDUCE_RATE_STEP = clampNumber(
-    toFiniteNumber(autoReduce.AUTO_REDUCE_RATE_STEP, 0.95),
-    0.000001,
-    1,
-  );
-  const AUTO_REDUCE_UNTIL_FILLED = clampNumber(
-    toFiniteNumber(autoReduce.AUTO_REDUCE_UNTIL_FILLED, 0.9),
-    0,
-    1,
-  );
+  const AUTO_REDUCE_TIME_GAP_MINUTES = settings.timeGapMinutes;
+  const AUTO_REDUCE_RATE_STEP = settings.rateStep;
+  const AUTO_REDUCE_UNTIL_FILLED = settings.untilFilled;
 
   const shouldHaveUnfilledRatio = Math.max(0, 1 - AUTO_REDUCE_UNTIL_FILLED);
   const unfilledAmount = Math.max(0, availableBalance + currentOfferAmount);
@@ -91,6 +107,34 @@ function getAutoReduceFactor({
 
   autoReduceStateByCurrency.set(ccy, state);
   return state.reduceFactor;
+}
+
+function onNewLendingFilled({ ccy, fillCount }) {
+  const settings = getAutoReduceSettings();
+  if (!settings.enabled) {
+    return;
+  }
+
+  const count = Math.max(0, Math.floor(Number(fillCount) || 0));
+  if (count <= 0) {
+    return;
+  }
+
+  const state = autoReduceStateByCurrency.get(ccy);
+  if (!state) {
+    return;
+  }
+
+  const recoverPower = count * settings.recoverPerFill;
+  const recoverMultiplier = Math.pow(1 / settings.rateStep, recoverPower);
+  state.reduceFactor = clampNumber(
+    state.reduceFactor * recoverMultiplier,
+    0,
+    1,
+  );
+  state.lastProgressMts = Date.now();
+
+  autoReduceStateByCurrency.set(ccy, state);
 }
 
 function getAutoReduceStatus(ccy) {
@@ -252,6 +296,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
 
 module.exports = main;
 module.exports.getAutoReduceStatus = getAutoReduceStatus;
+module.exports.onNewLendingFilled = onNewLendingFilled;
 
 if (require.main === module) {
   let ccy = "USD";

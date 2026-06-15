@@ -48,6 +48,13 @@ async function checkNewLendingAndNotify() {
       }
 
       if (credits.length > 0) {
+        if (typeof checkAndSubmitOffer.onNewLendingFilled === "function") {
+          checkAndSubmitOffer.onNewLendingFilled({
+            ccy,
+            fillCount: credits.length,
+          });
+        }
+
         const newLoans = credits.map((credit) => ({
           id: credit.id,
           amount: credit.amount,

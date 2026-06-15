@@ -18,6 +18,7 @@ module.exports = {
     AUTO_REDUCE_TIME_GAP: 60, // The time gap to reduce the offer rate (in minutes)
     AUTO_REDUCE_RATE_STEP: 0.95, // The reduction step of the offer rate, 0.95 means reducing 5% each time
     AUTO_REDUCE_UNTIL_FILLED: 0.9, // Stop reducing after this wallet ratio is lent out, 0.9 means 90% lent
+    AUTO_REDUCE_RECOVER_PER_FILL: 0.5, // Recover reduceFactor by fills: every 2 fills approximately undo 1 reduce step
   },
   Period: {
     PERIOD_MAP: [
