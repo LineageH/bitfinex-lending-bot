@@ -49,6 +49,10 @@ const login = async () => {
       command: "/syncearnings",
       description: t("cmdSyncEarnings"),
     },
+    {
+      command: "/setreducerate",
+      description: t("cmdSetReduceRate"),
+    },
     { command: "/submitoffers", description: t("cmdSubmitOffers") },
     { command: "/listoffer", description: t("cmdListOffer") },
   ]);
@@ -127,6 +131,84 @@ const login = async () => {
       await sendMessage(t("syncEarningsDone"));
     }
   });
+
+  client.onText(
+    /\/setreducerate(?:\s+([^\s]+))?(?:\s+([a-zA-Z]+))?/,
+    async (msg, match) => {
+      if (msg.chat.id != config.TELEGRAM_CHAT_ID) {
+        return;
+      }
+
+      const rawPercent = (match && match[1] ? String(match[1]) : "").trim();
+      const rawCurrency = (match && match[2] ? String(match[2]) : "").trim();
+
+      if (!rawPercent) {
+        await sendMessage(t("setReduceUsage"));
+        return;
+      }
+
+      const normalizedPercent = rawPercent.endsWith("%")
+        ? rawPercent.slice(0, -1)
+        : rawPercent;
+      const percent = Number(normalizedPercent);
+      if (!Number.isFinite(percent) || percent > 0 || percent < -100) {
+        await sendMessage(t("setReduceInvalidPercent"));
+        return;
+      }
+
+      const enabledCurrencies = [];
+      if (config.LEND.USD) enabledCurrencies.push("USD");
+      if (config.LEND.USDT) enabledCurrencies.push("UST");
+
+      let targetCurrencies = enabledCurrencies;
+      if (rawCurrency) {
+        const input = rawCurrency.toUpperCase();
+        if (input === "USD") {
+          targetCurrencies = ["USD"];
+        } else if (input === "USDT" || input === "UST") {
+          targetCurrencies = ["UST"];
+        } else {
+          await sendMessage(t("setReduceInvalidCurrency"));
+          return;
+        }
+      }
+
+      if (targetCurrencies.length === 0) {
+        await sendMessage(t("lendingDisabled"));
+        return;
+      }
+
+      if (
+        typeof checkAndSubmitOffer.setManualAutoReducePercent !== "function"
+      ) {
+        await sendMessage(t("setReduceAutoDisabled"));
+        return;
+      }
+
+      const lines = [];
+      for (const ccy of targetCurrencies) {
+        const result = checkAndSubmitOffer.setManualAutoReducePercent({
+          ccy,
+          percent,
+        });
+
+        if (!result || result.ok !== true) {
+          await sendMessage(t("setReduceAutoDisabled"));
+          return;
+        }
+
+        lines.push(
+          t("setReduceUpdatedLine", {
+            symbol: toSymbol(ccy),
+            rate: result.percent.toFixed(2),
+          }),
+        );
+      }
+
+      const message = `${t("setReduceUpdated")}\n${lines.join("\n")}`;
+      await sendMessage(message);
+    },
+  );
 
   client.onText(/\/submitoffers/, async (msg) => {
     if (msg.chat.id == config.TELEGRAM_CHAT_ID) {

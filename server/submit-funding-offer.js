@@ -153,6 +153,36 @@ function getAutoReduceStatus(ccy) {
   };
 }
 
+function setManualAutoReducePercent({ ccy, percent }) {
+  const settings = getAutoReduceSettings();
+  if (!settings.enabled) {
+    return { ok: false, reason: "disabled" };
+  }
+
+  const p = Number(percent);
+  if (!Number.isFinite(p) || p > 0 || p < -100) {
+    return { ok: false, reason: "invalid_percent" };
+  }
+
+  const reduceFactor = clampNumber(1 + p / 100, 0, 1);
+  const now = Date.now();
+  const state = autoReduceStateByCurrency.get(ccy) || {
+    reduceFactor: 1,
+    lastProgressMts: now,
+    lastLentAmount: 0,
+  };
+
+  state.reduceFactor = reduceFactor;
+  state.lastProgressMts = now; // reset next reduce countdown
+  autoReduceStateByCurrency.set(ccy, state);
+
+  return {
+    ok: true,
+    reduceFactor,
+    percent: (reduceFactor - 1) * 100,
+  };
+}
+
 async function getFundingOffers(
   ccy,
   avaliableBalance,
@@ -297,6 +327,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
 module.exports = main;
 module.exports.getAutoReduceStatus = getAutoReduceStatus;
 module.exports.onNewLendingFilled = onNewLendingFilled;
+module.exports.setManualAutoReducePercent = setManualAutoReducePercent;
 
 if (require.main === module) {
   let ccy = "USD";

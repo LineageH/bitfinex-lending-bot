@@ -2,7 +2,7 @@ module.exports = {
   SubmitTime: 3, // The time gap to submit the funding offer (in minutes)
   LendingNotifyInterval: 15, // The time gap to check new lending and send Telegram notifications (in minutes), set 0 to disable
   TELEGRAM_LANGUAGE: "en", // Telegram message language: en or zh-TW
-  BITFINEX_REQUEST_INTERVAL_MS: 500, // Minimum gap between Bitfinex API requests
+  BITFINEX_REQUEST_INTERVAL_MS: 200, // Minimum gap between Bitfinex API requests
   Strategy: {
     // The default strategy is splitByRate, you need to edit the code in server/submit-funding-offer.js to change the strategy
     splitByRate: {

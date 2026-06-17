@@ -3,6 +3,7 @@ module.exports = {
   cmdEarnings: "Earnings details - 7 days",
   cmdProvided: "Provided lending details",
   cmdSyncEarnings: "Sync funding earnings",
+  cmdSetReduceRate: "Set auto reduce rate",
   cmdSubmitOffers: "Submit funding offers",
   cmdListOffer: "List open funding offers",
   summaryTitle: "Lending Summary {{symbol}}:",
@@ -41,4 +42,11 @@ module.exports = {
   frr: "FRR",
   lendingStatus: "Lending Status",
   autoReduceRateLine: "Auto Reduce Rate: {{rate}}%",
+  setReduceUsage: "Usage: /setreducerate <0~-100%> [USD|USDT]",
+  setReduceInvalidPercent:
+    "Invalid percentage. Please input between 0 and -100.",
+  setReduceInvalidCurrency: "Invalid currency. Please use USD or USDT.",
+  setReduceAutoDisabled: "Auto reduce is not enabled.",
+  setReduceUpdated: "Auto reduce rate updated. Countdown reset.",
+  setReduceUpdatedLine: "{{symbol}}: {{rate}}%",
 };

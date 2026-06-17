@@ -3,6 +3,7 @@ module.exports = {
   cmdEarnings: "收益明細 - 7 天",
   cmdProvided: "已放貸明細",
   cmdSyncEarnings: "同步放貸收益",
+  cmdSetReduceRate: "設定自動降利率",
   cmdSubmitOffers: "送出放貸掛單",
   cmdListOffer: "列出未成交掛單",
   summaryTitle: "帳戶摘要 {{symbol}}:",
@@ -41,4 +42,10 @@ module.exports = {
   frr: "FRR",
   lendingStatus: "放貸狀態",
   autoReduceRateLine: "自動降利率: {{rate}}%",
+  setReduceUsage: "用法: /setreducerate <0~-100%> [USD|USDT]",
+  setReduceInvalidPercent: "百分比格式錯誤，請輸入 0 到 -100 之間。",
+  setReduceInvalidCurrency: "幣別錯誤，請使用 USD 或 USDT。",
+  setReduceAutoDisabled: "尚未啟用自動降利率。",
+  setReduceUpdated: "已更新自動降利率，並重置下一次倒數。",
+  setReduceUpdatedLine: "{{symbol}}: {{rate}}%",
 };
