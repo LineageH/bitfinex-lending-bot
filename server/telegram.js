@@ -15,6 +15,10 @@ const { t, dateLocale: DATE_LOCALE } = getTelegramI18n(
 );
 
 const toSymbol = (ccy) => (ccy === "USD" ? "USD" : "USDT");
+const getEnabledCurrencies = () => [
+  ...(config.LEND.USD ? ["USD"] : []),
+  ...(config.LEND.USDT ? ["UST"] : []),
+];
 
 function formatReduceRate(ccy) {
   if (typeof checkAndSubmitOffer.getAutoReduceStatus !== "function") {
@@ -96,14 +100,16 @@ const login = async () => {
       for (const d of data) {
         const symbol = toSymbol(d.ccy);
         let earnings = `💰 <b>${t("earningsTitle", { symbol })}</b>\n\n`;
-        for (const e of d.earnings) {
-          const date = new Date(e.mts).toLocaleDateString(DATE_LOCALE, {
-            month: "short",
-            day: "2-digit",
-          });
-          earnings += `${date}: ${e.amount.toFixed(2)}\n`;
-        }
-        earnings += "\n";
+        earnings +=
+          d.earnings
+            .map((e) => {
+              const date = new Date(e.mts).toLocaleDateString(DATE_LOCALE, {
+                month: "short",
+                day: "2-digit",
+              });
+              return `${date}: ${e.amount.toFixed(2)}`;
+            })
+            .join("\n") + "\n\n";
         await sendMessage(earnings, { parse_mode: "HTML" });
       }
     }
@@ -139,8 +145,8 @@ const login = async () => {
         return;
       }
 
-      const rawPercent = (match && match[1] ? String(match[1]) : "").trim();
-      const rawCurrency = (match && match[2] ? String(match[2]) : "").trim();
+      const rawPercent = match?.[1]?.trim() ?? "";
+      const rawCurrency = match?.[2]?.trim() ?? "";
 
       if (!rawPercent) {
         await sendMessage(t("setReduceUsage"));
@@ -156,9 +162,7 @@ const login = async () => {
         return;
       }
 
-      const enabledCurrencies = [];
-      if (config.LEND.USD) enabledCurrencies.push("USD");
-      if (config.LEND.USDT) enabledCurrencies.push("UST");
+      const enabledCurrencies = getEnabledCurrencies();
 
       let targetCurrencies = enabledCurrencies;
       if (rawCurrency) {
@@ -226,9 +230,7 @@ const login = async () => {
   async function listOpenOffers(msg) {
     try {
       if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
-        const currencies = [];
-        if (config.LEND.USD) currencies.push("USD");
-        if (config.LEND.USDT) currencies.push("UST");
+        const currencies = getEnabledCurrencies();
 
         if (currencies.length === 0) {
           await sendMessage(t("lendingDisabled") + "\n");
@@ -260,11 +262,16 @@ const login = async () => {
             content += `${reduceRateLine}\n\n`;
           }
 
-          offers.slice(0, 20).forEach((offer, index) => {
-            const rate = (compoundInterest(offer.rate || 0) * 100).toFixed(2);
-            const createdAt = moment(offer.time).format("MM-DD HH:mm");
-            content += `${index + 1}. ${Number(offer.amount || 0).toFixed(2)} @ ${rate}% for ${offer.period}d\n`;
-          });
+          content +=
+            offers
+              .slice(0, 20)
+              .map((offer, index) => {
+                const rate = (compoundInterest(offer.rate || 0) * 100).toFixed(
+                  2,
+                );
+                return `${index + 1}. ${Number(offer.amount || 0).toFixed(2)} @ ${rate}% for ${offer.period}d`;
+              })
+              .join("\n") + "\n";
 
           if (offers.length > 20) {
             content += `${t("andMore", { count: offers.length - 20 })}\n`;
@@ -294,10 +301,14 @@ const notifyNewLending = async ({ ccy, loans }) => {
 
   let message = `🔥 <b>${t("newTransactionsTitle", { symbol, count: loans.length })}</b>\n`;
 
-  loans.slice(0, 10).forEach((loan, index) => {
-    const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
-    message += `${index + 1}. ${Number(loan.amount || 0).toFixed(2)} @ ${rate}% for ${loan.period}d\n`;
-  });
+  message +=
+    loans
+      .slice(0, 10)
+      .map((loan, index) => {
+        const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
+        return `${index + 1}. ${Number(loan.amount || 0).toFixed(2)} @ ${rate}% for ${loan.period}d`;
+      })
+      .join("\n") + "\n";
 
   if (loans.length > 10) {
     message += `${t("andMore", { count: loans.length - 10 })}\n`;
@@ -317,7 +328,7 @@ async function getData() {
     const balance = wallet.balance;
     const availableBalance = wallet.availableBalance;
     const lending = (await bitfinext.getCurrentLending(ccy)).map((l) => ({
-      amount: l.amount,
+      amount: Math.round(Number(l.amount)),
       period: l.period,
       rate: (compoundInterest(l.rate) * 100).toFixed(2),
       exp: l.time + l.period * 86400000,
@@ -327,11 +338,11 @@ async function getData() {
     const acc = {};
     lending.forEach((l) => {
       const key = l.period + l.fromNow;
-      if (acc[key] == undefined) {
+      if (!(key in acc)) {
         acc[key] = l;
         acc[key].count = 1;
       } else {
-        acc[key].amount = Math.random(acc[key].amount + l.amount);
+        acc[key].amount += l.amount;
         acc[key].rate = (
           (Number(acc[key].rate) * acc[key].amount +
             Number(l.rate) * l.amount) /
@@ -364,19 +375,19 @@ async function getData() {
     const table = new Table(reducedLending, tableConfig);
     const tableString = table.toPlainString();
 
-    let total = 0;
-    let interest = 0;
-    for (const l of reducedLending) {
-      total += l.amount;
-      interest += l.amount * l.rate;
-    }
+    const { total, interest } = reducedLending.reduce(
+      ({ total, interest }, l) => ({
+        total: total + l.amount,
+        interest: interest + l.amount * l.rate,
+      }),
+      { total: 0, interest: 0 },
+    );
     const providedRate =
       total > 0 && Number.isFinite(interest / total)
         ? (interest / total).toFixed(2)
         : "0"; // interest rate of provided lending
     const providedAmount = total.toFixed(2); // total amount of provided lending
     const offersBalance = balance - availableBalance - providedAmount; // total amount of open offers
-    const offersAmount = offersBalance.toFixed(2);
     const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
 
     const frrRate = (compoundInterest(await getFRR(ccy)) * 100).toFixed(2); // interest rate of the FRR
@@ -391,12 +402,9 @@ async function getData() {
       })
       .sort({ _id: -1 });
 
-    let totalEarnings = 0;
-    earnings30.forEach((e) => {
-      totalEarnings += e.amount;
-    });
-
-    totalEarnings = totalEarnings.toFixed(2); // total earnings of the last 30 days
+    const totalEarnings = earnings30
+      .reduce((sum, e) => sum + e.amount, 0)
+      .toFixed(2); // total earnings of the last 30 days
 
     const day7diff = 7 * 24 * 3600 * 1000;
     const day7ago = Date.now() - day7diff;
@@ -410,18 +418,15 @@ async function getData() {
     const lifeEarnings = await db.earnings
       .find({ currency: ccy })
       .sort({ _id: -1 });
-    let lifeTimeEarnings = 0;
-    let fistDate = "";
-    lifeEarnings.forEach((e) => {
-      if (e.currency === ccy) {
-        lifeTimeEarnings += e.amount;
-        fistDate = new Date(e.mts).toLocaleDateString(DATE_LOCALE, {
+    const lifeTimeEarnings = lifeEarnings.reduce((sum, e) => sum + e.amount, 0);
+    const lastRecord = lifeEarnings[lifeEarnings.length - 1];
+    const fistDate = lastRecord
+      ? new Date(lastRecord.mts).toLocaleDateString(DATE_LOCALE, {
           month: "short",
           day: "2-digit",
           year: "2-digit",
-        });
-      }
-    });
+        })
+      : "";
 
     return {
       ccy,
@@ -445,16 +450,8 @@ async function getData() {
   }
 
   const data = [];
-
-  if (config.LEND.USD) {
-    const usdData = await getDataByCurrency("USD");
-    data.push(usdData);
+  for (const ccy of getEnabledCurrencies()) {
+    data.push(await getDataByCurrency(ccy));
   }
-
-  if (config.LEND.USDT) {
-    const ustData = await getDataByCurrency("UST");
-    data.push(ustData);
-  }
-
   return data;
 }

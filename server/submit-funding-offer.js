@@ -300,16 +300,7 @@ async function main({ showDetail = false, ccy = "USD" } = {}) {
         try {
           await submitFundingOffer(offer);
           await sleep(500);
-        } catch (error) {
-          if (error.response !== undefined) {
-            console.log(
-              `${toTime()}: Failed to submit funding offers for ${ccy}`,
-              error.response,
-            );
-          } else {
-            throw error;
-          }
-        }
+        } catch (_) {}
       });
     }
 
