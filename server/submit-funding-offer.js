@@ -32,6 +32,9 @@ function toFiniteNumber(value, fallback) {
 
 function getAutoReduceSettings() {
   const autoReduce = autoReduceConfig || {};
+  const strategy = strategyConfig?.splitByRate || {};
+  const minToLend = Math.max(toFiniteNumber(strategy.MIN_TO_LEND, 150), 150);
+
   return {
     enabled: autoReduce.AUTO_REDUCE_RATE === true,
     timeGapMinutes: Math.max(
@@ -54,6 +57,7 @@ function getAutoReduceSettings() {
       0,
       1,
     ),
+    minToLend,
   };
 }
 
@@ -74,10 +78,12 @@ function getAutoReduceFactor({
   const AUTO_REDUCE_TIME_GAP_MINUTES = settings.timeGapMinutes;
   const AUTO_REDUCE_RATE_STEP = settings.rateStep;
   const AUTO_REDUCE_UNTIL_FILLED = settings.untilFilled;
+  const MIN_TO_LEND = settings.minToLend;
 
   const shouldHaveUnfilledRatio = Math.max(0, 1 - AUTO_REDUCE_UNTIL_FILLED);
   const unfilledAmount = Math.max(0, availableBalance + currentOfferAmount);
-  const unfilledRatio = unfilledAmount / balance;
+  const effectiveUnfilledAmount = Math.max(0, unfilledAmount - MIN_TO_LEND);
+  const unfilledRatio = effectiveUnfilledAmount / balance;
   const lentAmount = Math.max(0, balance - unfilledAmount);
 
   if (unfilledRatio <= shouldHaveUnfilledRatio) {
