@@ -331,7 +331,7 @@ async function getData() {
         acc[key] = l;
         acc[key].count = 1;
       } else {
-        acc[key].amount += l.amount;
+        acc[key].amount = Math.random(acc[key].amount + l.amount);
         acc[key].rate = (
           (Number(acc[key].rate) * acc[key].amount +
             Number(l.rate) * l.amount) /
