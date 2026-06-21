@@ -299,7 +299,27 @@ const notifyNewLending = async ({ ccy, loans }) => {
   const symbol = toSymbol(ccy);
   const total = loans.reduce((acc, loan) => acc + Number(loan.amount || 0), 0);
 
-  let message = `🔥 <b>${t("newTransactionsTitle", { symbol, count: loans.length })}</b>\n`;
+  let message = `📊 <b>${t("lendingStatus")}</b>\n`;
+
+  try {
+    const statusData = await getDataByCurrency(ccy);
+    message += `${t("provided")}  : ${statusData.providedAmount} (${((statusData.providedAmount / (statusData.balance || 1)) * 100).toFixed(2)}%)\n`;
+    message += `${t("offered")} : ${statusData.offersBalance.toFixed(2)}\n`;
+    message += `${t("providedRate")}  : ${statusData.providedRate || 0}%\n`;
+    message += `${t("effective")} : ${(((statusData.providedRate || 0) * statusData.providedAmount) / (statusData.balance || 1)).toFixed(2)}%\n`;
+
+    const reduceRateLine = formatReduceRate(ccy);
+    if (reduceRateLine) {
+      message += `${reduceRateLine}\n`;
+    }
+  } catch (error) {
+    console.error(
+      "Error while appending lending status in notifyNewLending:",
+      error,
+    );
+  }
+
+  message += `\n🔥 <b>${t("newTransactionsTitle", { symbol, count: loans.length })}</b>\n`;
 
   message +=
     loans
@@ -313,7 +333,6 @@ const notifyNewLending = async ({ ccy, loans }) => {
   if (loans.length > 10) {
     message += `${t("andMore", { count: loans.length - 10 })}\n`;
   }
-
   await sendMessage(message, { parse_mode: "HTML" });
 };
 
@@ -322,129 +341,128 @@ module.exports = {
   notifyNewLending,
 };
 
-async function getData() {
-  const getDataByCurrency = async (ccy) => {
-    const wallet = await bitfinext.getWallet(ccy); // get balance and available balance of the funding wallet
-    const balance = wallet.balance;
-    const availableBalance = wallet.availableBalance;
-    const lending = (await bitfinext.getCurrentLending(ccy)).map((l) => ({
-      amount: Math.round(Number(l.amount)),
-      period: l.period,
-      rate: (compoundInterest(l.rate) * 100).toFixed(2),
-      exp: l.time + l.period * 86400000,
-      fromNow: moment(l.time + l.period * 86400000).fromNow(),
-    })); // get current provided lending
+async function getDataByCurrency(ccy) {
+  const wallet = await bitfinext.getWallet(ccy); // get balance and available balance of the funding wallet
+  const balance = wallet.balance;
+  const availableBalance = wallet.availableBalance;
+  const lending = (await bitfinext.getCurrentLending(ccy)).map((l) => ({
+    amount: Math.round(Number(l.amount)),
+    period: l.period,
+    rate: (compoundInterest(l.rate) * 100).toFixed(2),
+    exp: l.time + l.period * 86400000,
+    fromNow: moment(l.time + l.period * 86400000).fromNow(),
+  })); // get current provided lending
 
-    const acc = {};
-    lending.forEach((l) => {
-      const key = l.period + l.fromNow;
-      if (!(key in acc)) {
-        acc[key] = l;
-        acc[key].count = 1;
-      } else {
-        acc[key].amount += l.amount;
-        acc[key].rate = (
-          (Number(acc[key].rate) * acc[key].amount +
-            Number(l.rate) * l.amount) /
-          (acc[key].amount + l.amount)
-        ).toFixed(2);
-        acc[key].count++;
-      }
-    }); // group by period and time
-    const reducedLending = Object.values(acc);
-    reducedLending.sort((a, b) => {
-      return a.exp - b.exp || a.period - b.period;
-    });
+  const acc = {};
+  lending.forEach((l) => {
+    const key = l.period + l.fromNow;
+    if (!(key in acc)) {
+      acc[key] = l;
+      acc[key].count = 1;
+    } else {
+      acc[key].amount += l.amount;
+      acc[key].rate = (
+        (Number(acc[key].rate) * acc[key].amount + Number(l.rate) * l.amount) /
+        (acc[key].amount + l.amount)
+      ).toFixed(2);
+      acc[key].count++;
+    }
+  }); // group by period and time
+  const reducedLending = Object.values(acc);
+  reducedLending.sort((a, b) => {
+    return a.exp - b.exp || a.period - b.period;
+  });
 
-    const tableConfig = {
-      padding: {
-        size: 1,
+  const tableConfig = {
+    padding: {
+      size: 1,
+    },
+    header: {
+      include: ["amount", "period", "rate", "count", "fromNow"],
+      displayNames: {
+        amount: t("tableAmount"),
+        period: t("tablePeriod"),
+        rate: t("tableRate"),
+        count: t("tableCount"),
+        fromNow: t("tableExpires"),
       },
-      header: {
-        include: ["amount", "period", "rate", "count", "fromNow"],
-        displayNames: {
-          amount: t("tableAmount"),
-          period: t("tablePeriod"),
-          rate: t("tableRate"),
-          count: t("tableCount"),
-          fromNow: t("tableExpires"),
-        },
-      },
-    };
-
-    const table = new Table(reducedLending, tableConfig);
-    const tableString = table.toPlainString();
-
-    const { total, interest } = reducedLending.reduce(
-      ({ total, interest }, l) => ({
-        total: total + l.amount,
-        interest: interest + l.amount * l.rate,
-      }),
-      { total: 0, interest: 0 },
-    );
-    const providedRate =
-      total > 0 && Number.isFinite(interest / total)
-        ? (interest / total).toFixed(2)
-        : "0"; // interest rate of provided lending
-    const providedAmount = total.toFixed(2); // total amount of provided lending
-    const offersBalance = balance - availableBalance - providedAmount; // total amount of open offers
-    const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
-
-    const frrRate = (compoundInterest(await getFRR(ccy)) * 100).toFixed(2); // interest rate of the FRR
-
-    // take only recently 30 days
-    const day30diff = 30 * 24 * 3600 * 1000;
-    const day30ago = Date.now() - day30diff;
-    const earnings30 = await db.earnings
-      .find({
-        mts: { $gt: day30ago },
-        currency: ccy,
-      })
-      .sort({ _id: -1 });
-
-    const totalEarnings = earnings30
-      .reduce((sum, e) => sum + e.amount, 0)
-      .toFixed(2); // total earnings of the last 30 days
-
-    const day7diff = 7 * 24 * 3600 * 1000;
-    const day7ago = Date.now() - day7diff;
-    const earnings = await db.earnings
-      .find({
-        mts: { $gt: day7ago },
-        currency: ccy,
-      })
-      .sort({ _id: -1 });
-
-    const lifeEarnings = await db.earnings
-      .find({ currency: ccy })
-      .sort({ _id: -1 });
-    const lifeTimeEarnings = lifeEarnings.reduce((sum, e) => sum + e.amount, 0);
-    const lastRecord = lifeEarnings[lifeEarnings.length - 1];
-    const fistDate = lastRecord
-      ? new Date(lastRecord.mts).toLocaleDateString(DATE_LOCALE, {
-          month: "short",
-          day: "2-digit",
-          year: "2-digit",
-        })
-      : "";
-
-    return {
-      ccy,
-      balance,
-      availableBalance,
-      providedAmount,
-      offersBalance,
-      earnings,
-      totalEarnings,
-      providedRate,
-      rate,
-      frrRate,
-      tableString,
-      lifeTimeEarnings: lifeTimeEarnings.toFixed(2),
-      fistDate,
-    };
+    },
   };
 
+  const table = new Table(reducedLending, tableConfig);
+  const tableString = table.toPlainString();
+
+  const { total, interest } = reducedLending.reduce(
+    ({ total, interest }, l) => ({
+      total: total + l.amount,
+      interest: interest + l.amount * l.rate,
+    }),
+    { total: 0, interest: 0 },
+  );
+  const providedRate =
+    total > 0 && Number.isFinite(interest / total)
+      ? (interest / total).toFixed(2)
+      : "0"; // interest rate of provided lending
+  const providedAmount = total.toFixed(2); // total amount of provided lending
+  const offersBalance = balance - availableBalance - providedAmount; // total amount of open offers
+  const rate = (compoundInterest(await getLowRate(ccy)) * 100).toFixed(2); // interest rate of the lowest public offer
+
+  const frrRate = (compoundInterest(await getFRR(ccy)) * 100).toFixed(2); // interest rate of the FRR
+
+  // take only recently 30 days
+  const day30diff = 30 * 24 * 3600 * 1000;
+  const day30ago = Date.now() - day30diff;
+  const earnings30 = await db.earnings
+    .find({
+      mts: { $gt: day30ago },
+      currency: ccy,
+    })
+    .sort({ _id: -1 });
+
+  const totalEarnings = earnings30
+    .reduce((sum, e) => sum + e.amount, 0)
+    .toFixed(2); // total earnings of the last 30 days
+
+  const day7diff = 7 * 24 * 3600 * 1000;
+  const day7ago = Date.now() - day7diff;
+  const earnings = await db.earnings
+    .find({
+      mts: { $gt: day7ago },
+      currency: ccy,
+    })
+    .sort({ _id: -1 });
+
+  const lifeEarnings = await db.earnings
+    .find({ currency: ccy })
+    .sort({ _id: -1 });
+  const lifeTimeEarnings = lifeEarnings.reduce((sum, e) => sum + e.amount, 0);
+  const lastRecord = lifeEarnings[lifeEarnings.length - 1];
+  const fistDate = lastRecord
+    ? new Date(lastRecord.mts).toLocaleDateString(DATE_LOCALE, {
+        month: "short",
+        day: "2-digit",
+        year: "2-digit",
+      })
+    : "";
+
+  return {
+    ccy,
+    balance,
+    availableBalance,
+    providedAmount,
+    offersBalance,
+    earnings,
+    totalEarnings,
+    providedRate,
+    rate,
+    frrRate,
+    tableString,
+    lifeTimeEarnings: lifeTimeEarnings.toFixed(2),
+    fistDate,
+  };
+}
+
+async function getData() {
   if (!config.LEND.USD && !config.LEND.USDT) {
     return [];
   }
