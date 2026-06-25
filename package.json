@@ -10,7 +10,6 @@
     "nedb": "^1.8.0",
     "nedb-promises": "^6.2.3",
     "node-cache": "^5.1.2",
-    "node-schedule": "^2.1.1",
     "node-telegram-bot-api": "^0.67.0",
     "source-map-support": "^0.5.21",
     "voici.js": "^3.0.0"

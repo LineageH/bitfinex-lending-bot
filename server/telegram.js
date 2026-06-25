@@ -13,6 +13,7 @@ const client = new Telegram(config.TELEGRAM_BOT_TOKEN, { polling: true });
 const { t, dateLocale: DATE_LOCALE } = getTelegramI18n(
   config.TELEGRAM_LANGUAGE,
 );
+let configReloadListenerAttached = false;
 
 const toSymbol = (ccy) => (ccy === "USD" ? "USD" : "USDT");
 const getEnabledCurrencies = () => [
@@ -285,7 +286,64 @@ const login = async () => {
       await sendMessage(t("listOfferError"));
     }
   }
+
+  setupConfigReloadNotification();
 };
+
+function setupConfigReloadNotification() {
+  if (configReloadListenerAttached) {
+    return;
+  }
+
+  if (typeof config.onCustomConfigReload !== "function") {
+    return;
+  }
+
+  config.onCustomConfigReload(async ({ changes }) => {
+    if (!Array.isArray(changes) || changes.length === 0) {
+      return;
+    }
+
+    const lines = [
+      `⚙️ <b>${t("configReloadTitle")}</b>`,
+      t("configReloadFileLine"),
+      "",
+    ];
+
+    changes.forEach((change) => {
+      const paths = Array.isArray(change.paths) ? change.paths : [];
+      const visiblePaths = paths.slice(0, 10);
+      const pathText =
+        visiblePaths.length > 0 ? visiblePaths.join(", ") : "(value)";
+
+      lines.push(
+        t("configReloadSectionLine", {
+          section: change.section,
+          paths: pathText,
+        }),
+      );
+
+      if (paths.length > visiblePaths.length) {
+        lines.push(
+          t("configReloadAndMorePaths", {
+            count: paths.length - visiblePaths.length,
+          }),
+        );
+      }
+    });
+
+    try {
+      await sendMessage(lines.join("\n"), { parse_mode: "HTML" });
+    } catch (error) {
+      console.error(
+        "Failed to send config reload Telegram notification",
+        error,
+      );
+    }
+  });
+
+  configReloadListenerAttached = true;
+}
 
 const sendMessage = async (msg, options = {}) => {
   return await client.sendMessage(config.TELEGRAM_CHAT_ID, msg, options);

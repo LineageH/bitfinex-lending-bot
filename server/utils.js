@@ -1,5 +1,7 @@
 const { getFundingBook, fetchFRR } = require("./bitfinex");
-const { Period: periodConfig } = require("./config");
+const config = require("./config");
+
+const DEFAULT_PERIOD_MAP = [[0, 2]];
 
 function compoundInterest(rate) {
   return Math.pow(1 + rate, 365) - 1;
@@ -33,7 +35,7 @@ function readableOffer(offer) {
 
 function getPeriod(rate) {
   // TODO: dynamically decide the mapping
-  const mapping = periodConfig.PERIOD_MAP;
+  const mapping = config.Period?.PERIOD_MAP || DEFAULT_PERIOD_MAP;
 
   const annual_rate = compoundInterest(rate);
   for (let [r, p] of mapping) {

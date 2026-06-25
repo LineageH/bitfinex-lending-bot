@@ -48,4 +48,8 @@ module.exports = {
   setReduceAutoDisabled: "尚未啟用自動降利率。",
   setReduceUpdated: "已更新自動降利率，並重置下一次倒數。",
   setReduceUpdatedLine: "{{symbol}}: {{rate}}%",
+  configReloadTitle: "設定已更新",
+  configReloadFileLine: "custom-config.js 已重新載入。",
+  configReloadSectionLine: "- {{section}}: {{paths}}",
+  configReloadAndMorePaths: "  ...另有 {{count}} 項變更",
 };

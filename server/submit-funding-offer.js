@@ -14,10 +14,7 @@ const {
   asyncForEach,
 } = require("./utils");
 const Stratege = require("./strategy");
-const {
-  Strategy: strategyConfig,
-  AutoReduce: autoReduceConfig,
-} = require("./config");
+const config = require("./config");
 
 const autoReduceStateByCurrency = new Map();
 
@@ -31,8 +28,8 @@ function toFiniteNumber(value, fallback) {
 }
 
 function getAutoReduceSettings() {
-  const autoReduce = autoReduceConfig || {};
-  const strategy = strategyConfig?.splitByRate || {};
+  const autoReduce = config.AutoReduce || {};
+  const strategy = config.Strategy?.splitByRate || {};
   const minToLend = Math.max(toFiniteNumber(strategy.MIN_TO_LEND, 150), 150);
 
   return {
@@ -144,7 +141,7 @@ function onNewLendingFilled({ ccy, fillCount }) {
 }
 
 function getAutoReduceStatus(ccy) {
-  const autoReduce = autoReduceConfig || {};
+  const autoReduce = config.AutoReduce || {};
   const enabled = autoReduce.AUTO_REDUCE_RATE === true;
   if (!enabled) {
     return { enabled: false };

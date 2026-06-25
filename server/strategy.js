@@ -5,7 +5,7 @@ const {
   compoundInterest,
   getFRR,
 } = require("./utils");
-const { Strategy: config } = require("./config");
+const config = require("./config");
 
 const splitByRate = async (
   ccy,
@@ -14,7 +14,8 @@ const splitByRate = async (
   currentOfferRateMin,
   options = {},
 ) => {
-  const CONFIG = config.splitByRate || {};
+  const strategyConfig = config.Strategy || {};
+  const CONFIG = strategyConfig.splitByRate || {};
   const MIN_TO_LEND = Math.max(CONFIG.MIN_TO_LEND || 150, 150);
   const MIN_APY = CONFIG.MIN_APY || 0.1;
   const FRR_FACTOR = CONFIG.FRR_FACTOR || 0.95;

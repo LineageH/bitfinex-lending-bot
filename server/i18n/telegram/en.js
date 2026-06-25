@@ -49,4 +49,8 @@ module.exports = {
   setReduceAutoDisabled: "Auto reduce is not enabled.",
   setReduceUpdated: "Auto reduce rate updated. Countdown reset.",
   setReduceUpdatedLine: "{{symbol}}: {{rate}}%",
+  configReloadTitle: "Config Updated",
+  configReloadFileLine: "custom-config.js has been reloaded.",
+  configReloadSectionLine: "- {{section}}: {{paths}}",
+  configReloadAndMorePaths: "  ...and {{count}} more changes",
 };
