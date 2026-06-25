@@ -6,14 +6,16 @@ If you don't have Bitfinex account yet, you may [register here](https://www.bitf
 
 Forked From [@huaying/bitfinex-lending-bot](https://github.com/huaying/bitfinex-lending-bot) and make the following changes:
 
-- Upgrade to Node.js 18+
+- Upgrade to Node.js 22+
 - Added a Telegram Bot
+- New Strategy
+- Auto Reduct Offer Rate by Time
 - Remove the React Web
 - Remove the Express.js API
 
 ## Prerequisite
 
-- Node.js version 18+
+- Node.js version 22+
 - npm / pnpm / yarn
 
 ## Installation & Configuration
@@ -99,27 +101,30 @@ pnpm run start
 
 Telegram messages now support English and Traditional Chinese. Set `TELEGRAM_LANGUAGE` to `en` or `zh-TW`.
 
-```
-/summary - Show lending summary
-/earnings - Show earnings details of last 7 days
-/provided - Show the provided details summary grouped by expries & period
-/syncearnings - Load the earning data from bitfinex manually
-/submitoffers - Submit offer immediately
-```
-
-## Submit the lending offer manually
-
-Although the bot will run it regularly, you can run the script directly.
+All commands below are available after the bot is started, and only the configured `TELEGRAM_CHAT_ID` can use them.
 
 ```
-pnpm run auto-submit # For USD lending
-pnpm run auto-submit:usdt # For USDT lending
-```
+/summary
+Show lending summary (balance, available, provided, offered, effective rate, FRR, earnings)
 
-## Read the earning data manually
+/earnings
+Show earnings details of the last 7 days
 
-Although the bot will run it regularly, you can run the script directly.
+/provided
+Show provided lending details grouped by period and expiry
 
-```
-pnpm run sync-earning
+/syncearnings
+Sync funding earnings from Bitfinex immediately
+
+/setreducerate <0~-100%> [USD|USDT]
+Set auto-reduce rate manually. Examples:
+/setreducerate -5%
+/setreducerate -8 USD
+/setreducerate -10% USDT
+
+/submitoffers
+Submit funding offers immediately for enabled currencies
+
+/listoffer
+List current open funding offers
 ```
