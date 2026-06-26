@@ -51,6 +51,7 @@ module.exports = {
   setReduceUpdatedLine: "{{symbol}}: {{rate}}%",
   configReloadTitle: "Config Updated",
   configReloadFileLine: "custom-config.js has been reloaded.",
-  configReloadSectionLine: "- {{section}}: {{paths}}",
+  configReloadSectionLine: "- {{section}}",
+  configReloadValueLine: "  • {{path}}: {{old}} -> {{new}}",
   configReloadAndMorePaths: "  ...and {{count}} more changes",
 };

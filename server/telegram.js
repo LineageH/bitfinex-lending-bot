@@ -21,6 +21,56 @@ const getEnabledCurrencies = () => [
   ...(config.LEND.USDT ? ["UST"] : []),
 ];
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function readPathValue(source, path) {
+  if (!path || path.startsWith("(")) {
+    return source;
+  }
+
+  return path.split(".").reduce((acc, key) => {
+    if (acc == null) {
+      return undefined;
+    }
+    return acc[key];
+  }, source);
+}
+
+function stringifyValue(value) {
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  if (value === null) {
+    return "null";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  const json = JSON.stringify(value);
+  if (!json) {
+    return String(value);
+  }
+  return json;
+}
+
+function formatValueForTelegram(value) {
+  const text = stringifyValue(value);
+  const shortened = text.length > 120 ? `${text.slice(0, 117)}...` : text;
+  return escapeHtml(shortened);
+}
+
 function formatReduceRate(ccy) {
   if (typeof checkAndSubmitOffer.getAutoReduceStatus !== "function") {
     return null;
@@ -313,15 +363,25 @@ function setupConfigReloadNotification() {
     changes.forEach((change) => {
       const paths = Array.isArray(change.paths) ? change.paths : [];
       const visiblePaths = paths.slice(0, 10);
-      const pathText =
-        visiblePaths.length > 0 ? visiblePaths.join(", ") : "(value)";
 
       lines.push(
         t("configReloadSectionLine", {
           section: change.section,
-          paths: pathText,
         }),
       );
+
+      visiblePaths.forEach((path) => {
+        const oldValue = readPathValue(change.before, path);
+        const newValue = readPathValue(change.after, path);
+
+        lines.push(
+          t("configReloadValueLine", {
+            path,
+            old: formatValueForTelegram(oldValue),
+            new: formatValueForTelegram(newValue),
+          }),
+        );
+      });
 
       if (paths.length > visiblePaths.length) {
         lines.push(

@@ -50,6 +50,7 @@ module.exports = {
   setReduceUpdatedLine: "{{symbol}}: {{rate}}%",
   configReloadTitle: "設定已更新",
   configReloadFileLine: "custom-config.js 已重新載入。",
-  configReloadSectionLine: "- {{section}}: {{paths}}",
+  configReloadSectionLine: "- {{section}}",
+  configReloadValueLine: "  • {{path}}: {{old}} -> {{new}}",
   configReloadAndMorePaths: "  ...另有 {{count}} 項變更",
 };
