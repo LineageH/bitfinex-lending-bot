@@ -410,12 +410,12 @@ const login = async () => {
             histories
               .slice(-10)
               .reverse()
-              .map((history) => {
+              .map((history, index) => {
                 const apy = (compoundInterest(history.rate || 0) * 100).toFixed(
                   2,
                 );
                 const pair = history.positionPair || "-";
-                return `${Number(history.amount || 0).toFixed(2)} @ ${apy}% dur. ${formatDuration(history.durationMs)} for ${pair}`;
+                return `${index + 1}. ${Number(history.amount || 0).toFixed(2)} @ ${apy}% dur. ${formatDuration(history.durationMs)} for ${pair}`;
               })
               .join("\n") + "\n";
 
