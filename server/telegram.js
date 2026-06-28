@@ -405,23 +405,19 @@ const login = async () => {
             continue;
           }
 
-          content += `${t("count")} : ${histories.length}\n\n`;
+          content += "\n";
           content +=
             histories
               .slice(-10)
               .reverse()
-              .map((history, index) => {
+              .map((history) => {
                 const apy = (compoundInterest(history.rate || 0) * 100).toFixed(
                   2,
                 );
                 const pair = history.positionPair || "-";
-                return `${index + 1}. ${Number(history.amount || 0).toFixed(2)} / ${apy}% / ${formatDuration(history.durationMs)} / ${pair}`;
+                return `${Number(history.amount || 0).toFixed(2)} @ ${apy}% dur. ${formatDuration(history.durationMs)} for ${pair}`;
               })
               .join("\n") + "\n";
-
-          if (histories.length > 10) {
-            content += `${t("andMore", { count: histories.length - 10 })}\n`;
-          }
 
           await sendMessage(content, { parse_mode: "HTML" });
         }
