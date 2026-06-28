@@ -8,6 +8,8 @@ const config = require("./config");
 
 const latestCreditMtsByCurrency = new Map();
 const latestCreditIdsAtMtsByCurrency = new Map();
+const latestClosedCreditMtsByCurrency = new Map();
+const latestClosedCreditIdsAtMtsByCurrency = new Map();
 let isCheckingNewLending = false;
 let isSubmittingOffers = false;
 let schedulerStarted = false;
@@ -165,6 +167,10 @@ async function checkNewLendingAndNotify() {
       const lastMtsCreate = latestCreditMtsByCurrency.get(ccy);
       const lastIdsAtMts = latestCreditIdsAtMtsByCurrency.get(ccy) || new Set();
       const credits = await bitfinex.getFundingTrades(ccy, lastMtsCreate);
+      const lastClosedMts = latestClosedCreditMtsByCurrency.get(ccy);
+      const lastClosedIdsAtMts =
+        latestClosedCreditIdsAtMtsByCurrency.get(ccy) || new Set();
+      const closedCredits = await bitfinex.getFundingCreditHistory(ccy);
 
       const newCredits = credits.filter((credit) => {
         if (lastMtsCreate == null) {
@@ -182,6 +188,24 @@ async function checkNewLendingAndNotify() {
         return !lastIdsAtMts.has(String(credit.id));
       });
 
+      const newClosedCredits = closedCredits.filter((credit) => {
+        const recordTime = Number(credit.time || credit.mtsLastPayout || 0);
+
+        if (lastClosedMts == null) {
+          return true;
+        }
+
+        if (recordTime > lastClosedMts) {
+          return true;
+        }
+
+        if (recordTime < lastClosedMts) {
+          return false;
+        }
+
+        return !lastClosedIdsAtMts.has(String(credit.id));
+      });
+
       if (credits.length > 0) {
         const latestMtsCreate = credits[credits.length - 1].mtsCreate;
         const latestIdsAtMts = new Set(
@@ -194,10 +218,40 @@ async function checkNewLendingAndNotify() {
         latestCreditIdsAtMtsByCurrency.set(ccy, latestIdsAtMts);
       }
 
-      if (lastMtsCreate == null) {
+      if (closedCredits.length > 0) {
+        const sortedClosedCredits = [...closedCredits].sort(
+          (a, b) =>
+            Number(a.time || a.mtsLastPayout || 0) -
+            Number(b.time || b.mtsLastPayout || 0),
+        );
+        const latestClosedTime = Number(
+          sortedClosedCredits[sortedClosedCredits.length - 1].time ||
+            sortedClosedCredits[sortedClosedCredits.length - 1].mtsLastPayout ||
+            0,
+        );
+        const latestClosedIdsAtMts = new Set(
+          sortedClosedCredits
+            .filter(
+              (credit) =>
+                Number(credit.time || credit.mtsLastPayout || 0) ===
+                latestClosedTime,
+            )
+            .map((credit) => String(credit.id)),
+        );
+
+        latestClosedCreditMtsByCurrency.set(ccy, latestClosedTime);
+        latestClosedCreditIdsAtMtsByCurrency.set(ccy, latestClosedIdsAtMts);
+      }
+
+      if (lastMtsCreate == null && lastClosedMts == null) {
         if (credits.length === 0) {
           latestCreditMtsByCurrency.set(ccy, Date.now());
           latestCreditIdsAtMtsByCurrency.set(ccy, new Set());
+        }
+
+        if (closedCredits.length === 0) {
+          latestClosedCreditMtsByCurrency.set(ccy, Date.now());
+          latestClosedCreditIdsAtMtsByCurrency.set(ccy, new Set());
         }
         continue;
       }
@@ -217,7 +271,27 @@ async function checkNewLendingAndNotify() {
           period: credit.period,
           time: credit.mtsCreate,
         }));
-        await telegram.notifyNewLending({ ccy, loans: newLoans });
+        const closedLoans = newClosedCredits.map((credit) => ({
+          id: credit.id,
+          amount: credit.amount,
+          rate: credit.rate,
+          period: credit.period,
+          time: credit.time,
+          status: credit.status,
+          durationMs: credit.durationMs,
+        }));
+        await telegram.notifyNewLending({ ccy, loans: newLoans, closedLoans });
+      } else if (newClosedCredits.length > 0) {
+        const closedLoans = newClosedCredits.map((credit) => ({
+          id: credit.id,
+          amount: credit.amount,
+          rate: credit.rate,
+          period: credit.period,
+          time: credit.time,
+          status: credit.status,
+          durationMs: credit.durationMs,
+        }));
+        await telegram.notifyNewLending({ ccy, loans: [], closedLoans });
       }
     }
   } catch (error) {

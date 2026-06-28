@@ -127,4 +127,7 @@ Submit funding offers immediately for enabled currencies
 
 /listoffer
 List current open funding offers
+
+/historys [USD|USDT]
+List recent closed funding history with amount / APY / duration / position pair
 ```

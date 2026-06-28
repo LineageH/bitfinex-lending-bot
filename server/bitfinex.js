@@ -145,6 +145,44 @@ async function getFundingTrades(ccy = DEFAULT_CCY, sinceMtsCreate = null) {
     .sort((a, b) => a.mtsCreate - b.mtsCreate);
 }
 
+async function getFundingCreditHistory(
+  ccy = DEFAULT_CCY,
+  sinceMtsCreate = null,
+) {
+  const records = await enqueue(() => client.fundingCreditHistory(`f${ccy}`));
+
+  return records
+    .map((trade) => {
+      const mtsCreate =
+        trade.mtsCreate || trade.mts_create || trade.mtsCreated || 0;
+      const mtsOpening = trade.mtsOpening || 0;
+      const mtsLastPayout = trade.mtsLastPayout || 0;
+      return {
+        id: trade.id,
+        side: trade.side,
+        status: trade.status,
+        amount: trade.amount,
+        rate: trade.rate,
+        period: trade.period,
+        mtsOpening,
+        mtsLastPayout,
+        durationMs:
+          mtsOpening > 0 && mtsLastPayout > 0
+            ? Math.max(0, mtsLastPayout - mtsOpening)
+            : 0,
+        time: mtsLastPayout || mtsOpening || mtsCreate,
+        mtsCreate,
+        positionPair: trade.positionPair || null,
+      };
+    })
+    .filter((trade) =>
+      sinceMtsCreate == null ? true : trade.mtsCreate > sinceMtsCreate,
+    )
+    .filter((trade) => trade.status.includes("CLOSED"))
+    .filter((trade) => trade.side == 1)
+    .sort((a, b) => a.mtsCreate - b.mtsCreate);
+}
+
 async function cancelAllFundingOffers(ccy = DEFAULT_CCY) {
   return await enqueue(() => client.cancelAllFundingOffers({ currency: ccy }));
 }
@@ -217,7 +255,7 @@ module.exports = {
   getCurrentLending,
   getCurrentFundingOffers,
   getFundingTrades,
-  getFundingCreditHistory: getFundingTrades,
+  getFundingCreditHistory,
   cancelAllFundingOffers,
   submitFundingOffer,
   getFundingBook,

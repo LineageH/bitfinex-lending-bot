@@ -86,6 +86,26 @@ function formatReduceRate(ccy) {
   return t("autoReduceRateLine", { rate: pct });
 }
 
+function formatDuration(durationMs) {
+  const totalMinutes = Math.max(0, Math.floor(Number(durationMs || 0) / 60000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+
+  if (days > 0) {
+    parts.push(`${days}d`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0 || parts.length === 0) {
+    parts.push(`${minutes}m`);
+  }
+
+  return parts.join(" ");
+}
+
 const login = async () => {
   client.setMyCommands([
     {
@@ -110,6 +130,7 @@ const login = async () => {
     },
     { command: "/submitoffers", description: t("cmdSubmitOffers") },
     { command: "/listoffer", description: t("cmdListOffer") },
+    { command: "/historys", description: t("cmdHistorys") },
   ]);
 
   client.onText(/\/summary/, async (msg) => {
@@ -278,6 +299,10 @@ const login = async () => {
     await listOpenOffers(msg);
   });
 
+  client.onText(/\/historys(?:\s+([a-zA-Z]+))?/, async (msg, match) => {
+    await listFundingHistory(msg, match?.[1]?.trim() ?? "");
+  });
+
   async function listOpenOffers(msg) {
     try {
       if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
@@ -334,6 +359,76 @@ const login = async () => {
     } catch (error) {
       console.error("Error in /listoffer command:", error);
       await sendMessage(t("listOfferError"));
+    }
+  }
+
+  async function listFundingHistory(msg, rawCurrency = "") {
+    try {
+      if (msg.chat.id == config.TELEGRAM_CHAT_ID) {
+        const enabledCurrencies = getEnabledCurrencies();
+
+        let currencies = enabledCurrencies;
+        if (rawCurrency) {
+          const input = rawCurrency.toUpperCase();
+          if (input === "USD") {
+            currencies = ["USD"];
+          } else if (input === "USDT" || input === "UST") {
+            currencies = ["UST"];
+          } else {
+            await sendMessage(t("historysUsage"));
+            return;
+          }
+        }
+
+        if (currencies.length === 0) {
+          await sendMessage(t("lendingDisabled") + "\n");
+          return;
+        }
+
+        currencies = currencies.filter((ccy) =>
+          enabledCurrencies.includes(ccy),
+        );
+        if (currencies.length === 0) {
+          await sendMessage(t("lendingDisabled") + "\n");
+          return;
+        }
+
+        for (const ccy of currencies) {
+          const histories = await bitfinext.getFundingCreditHistory(ccy);
+          const symbol = toSymbol(ccy);
+
+          let content = `🧾 <b>${t("historysTitle", { symbol })}</b>\n`;
+
+          if (histories.length === 0) {
+            content += `${t("noFundingHistory")}\n`;
+            await sendMessage(content, { parse_mode: "HTML" });
+            continue;
+          }
+
+          content += `${t("count")} : ${histories.length}\n\n`;
+          content +=
+            histories
+              .slice(-10)
+              .reverse()
+              .map((history, index) => {
+                const apy = (compoundInterest(history.rate || 0) * 100).toFixed(
+                  2,
+                );
+                const pair = history.positionPair || "-";
+                return `${index + 1}. ${Number(history.amount || 0).toFixed(2)} / ${apy}% / ${formatDuration(history.durationMs)} / ${pair}`;
+              })
+              .join("\n") + "\n";
+
+          if (histories.length > 10) {
+            content += `${t("andMore", { count: histories.length - 10 })}\n`;
+          }
+
+          await sendMessage(content, { parse_mode: "HTML" });
+        }
+      }
+    } catch (error) {
+      console.error("Error in /historys command:", error);
+      await sendMessage(t("historysError"));
     }
   }
 
@@ -409,8 +504,8 @@ const sendMessage = async (msg, options = {}) => {
   return await client.sendMessage(config.TELEGRAM_CHAT_ID, msg, options);
 };
 
-const notifyNewLending = async ({ ccy, loans }) => {
-  if (!loans || loans.length === 0) {
+const notifyNewLending = async ({ ccy, loans = [], closedLoans = [] }) => {
+  if (loans.length === 0 && closedLoans.length === 0) {
     return;
   }
 
@@ -437,19 +532,41 @@ const notifyNewLending = async ({ ccy, loans }) => {
     );
   }
 
-  message += `\n🔥 <b>${t("newTransactionsTitle", { symbol, count: loans.length })}</b>\n`;
+  if (loans.length > 0) {
+    message += `\n🔥 <b>${t("newTransactionsTitle", { symbol, count: loans.length })}</b>\n`;
 
-  message +=
-    loans
-      .slice(0, 10)
-      .map((loan, index) => {
-        const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
-        return `${index + 1}. ${Number(loan.amount || 0).toFixed(2)} @ ${rate}% for ${loan.period}d`;
-      })
-      .join("\n") + "\n";
+    message +=
+      loans
+        .slice(0, 10)
+        .map((loan, index) => {
+          const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
+          return `${index + 1}. ${Number(loan.amount || 0).toFixed(2)} @ ${rate}% for ${loan.period}d`;
+        })
+        .join("\n") + "\n";
 
-  if (loans.length > 10) {
-    message += `${t("andMore", { count: loans.length - 10 })}\n`;
+    if (loans.length > 10) {
+      message += `${t("andMore", { count: loans.length - 10 })}\n`;
+    }
+  }
+
+  if (closedLoans.length > 0) {
+    message += `\n✅ <b>${t("closedTransactionsTitle", {
+      symbol,
+      count: closedLoans.length,
+    })}</b>\n`;
+
+    message +=
+      closedLoans
+        .slice(0, 10)
+        .map((loan, index) => {
+          const rate = (compoundInterest(loan.rate || 0) * 100).toFixed(2);
+          return `${index + 1}. ${Number(loan.amount || 0).toFixed(2)} @ ${rate}% for ${loan.period}d (${t("loanDuration")}: ${formatDuration(loan.durationMs)})`;
+        })
+        .join("\n") + "\n";
+
+    if (closedLoans.length > 10) {
+      message += `${t("andMore", { count: closedLoans.length - 10 })}\n`;
+    }
   }
   await sendMessage(message, { parse_mode: "HTML" });
 };
