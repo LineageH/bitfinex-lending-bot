@@ -8,7 +8,7 @@ module.exports = {
   cmdListOffer: "列出未成交掛單",
   cmdHistorys: "列出近期已完結借款",
   summaryTitle: "帳戶摘要 {{symbol}}:",
-  balance: "錢包餘額",
+  balance: "錢包總額",
   available: "可用餘額",
   provided: "已放貸",
   providedRate: "平均利率",

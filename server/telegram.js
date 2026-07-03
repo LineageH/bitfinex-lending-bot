@@ -512,8 +512,8 @@ const notifyNewLending = async ({ ccy, loans = [], closedLoans = [] }) => {
 
   try {
     const statusData = await getDataByCurrency(ccy);
+    message += `${t("balance")} : ${statusData.balance.toFixed(2)}\n`;
     message += `${t("provided")}  : ${statusData.providedAmount} (${((statusData.providedAmount / (statusData.balance || 1)) * 100).toFixed(2)}%)\n`;
-    message += `${t("offered")} : ${statusData.offersBalance.toFixed(2)}\n`;
     message += `${t("providedRate")}  : ${statusData.providedRate || 0}%\n`;
     message += `${t("effective")} : ${(((statusData.providedRate || 0) * statusData.providedAmount) / (statusData.balance || 1)).toFixed(2)}%\n`;
 
